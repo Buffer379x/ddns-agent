@@ -47,7 +47,6 @@
   </Changes>
   <Config Name="Web UI Port" Target="8080" Default="8080" Mode="tcp" Description="Web interface port" Type="Port" Display="always" Required="true" Mask="false">8080</Config>
   <Config Name="Data Directory" Target="/data" Default="/mnt/user/appdata/ddns-agent" Mode="rw" Description="Persistent data storage (database, backups, encryption key)" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/ddns-agent</Config>
-  <Config Name="Update Interval" Target="DDNS_UPDATE_INTERVAL" Default="5m" Description="How often to check for IP changes (e.g. 5m, 10m, 30m, 1h)" Type="Variable" Display="always" Required="false" Mask="false">5m</Config>
   <Config Name="Cooldown Period" Target="DDNS_COOLDOWN" Default="5m" Description="Minimum time between updates for the same record" Type="Variable" Display="always" Required="false" Mask="false">5m</Config>
   <Config Name="HTTP Timeout" Target="DDNS_HTTP_TIMEOUT" Default="10s" Description="Timeout for HTTP requests to IP check services and provider APIs" Type="Variable" Display="always" Required="false" Mask="false">10s</Config>
   <Config Name="Backup Retention" Target="DDNS_BACKUP_RETENTION" Default="7" Description="Number of daily database backups to keep" Type="Variable" Display="advanced" Required="false" Mask="false">7</Config>
