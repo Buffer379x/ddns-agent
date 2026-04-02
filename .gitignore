@@ -1,0 +1,23 @@
+# Binary (root only; do not use bare "ddns-agent" — it ignores cmd/ddns-agent/)
+/ddns-agent
+
+# Data
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Keys
+.key
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go
+vendor/

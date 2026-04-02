@@ -1,0 +1,58 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches: 
+      - main
+      - beta
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Lowercase repository name
+        run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
+      - name: Define Docker Tags
+        id: define_tags
+        run: |
+          TAGS="ghcr.io/${{ env.REPO_LC }}:latest"
+
+          if [[ "${{ github.ref }}" == "refs/heads/beta" ]]; then
+            TAGS="ghcr.io/${{ env.REPO_LC }}:beta"
+            
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            
+            if [[ "$VERSION" == *"-beta"* ]]; then
+              TAGS="ghcr.io/${{ env.REPO_LC }}:${VERSION},ghcr.io/${{ env.REPO_LC }}:beta"
+            else
+              TAGS="ghcr.io/${{ env.REPO_LC }}:${VERSION},ghcr.io/${{ env.REPO_LC }}:latest"
+            fi
+          fi
+          
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.define_tags.outputs.tags }}
