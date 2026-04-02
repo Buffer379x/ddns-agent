@@ -213,25 +213,35 @@
 
         <!-- Records Table (read-only, only active records) -->
         <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden">
-          <div class="hidden md:grid grid-cols-[2.5rem_1.5fr_1fr_1fr_1fr] gap-4 items-center px-5 py-3">
+          <div class="hidden md:grid md:grid-cols-[2.5rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr] gap-4 items-center px-5 py-3">
             <span class="label-sm" x-text="$store.i18n.t('table.status')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.hostname')"></span>
+            <span class="label-sm" x-text="$store.i18n.t('table.domain')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.provider')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.ip_address')"></span>
+            <span class="label-sm" x-text="$store.i18n.t('table.protocol')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.last_sync')"></span>
           </div>
           <template x-for="rec in activeRecords" :key="rec.id">
-            <div class="grid grid-cols-1 md:grid-cols-[2.5rem_1.5fr_1fr_1fr_1fr] gap-2 md:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default">
+            <div class="grid grid-cols-1 md:grid-cols-[2.5rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr] gap-2 md:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default">
               <div class="flex items-center gap-2 md:justify-center">
                 <span class="status-dot" :class="statusDotClass(rec.status)"></span>
                 <span class="md:hidden label-sm capitalize" x-text="rec.status"></span>
               </div>
               <div>
                 <p class="font-medium text-sm truncate" x-text="buildHostname(rec)"></p>
+                <p class="md:hidden text-xs mt-0.5 flex flex-wrap items-center gap-2">
+                  <span class="inline-flex max-w-[min(100%,12rem)] px-1.5 py-0.5 rounded-md text-[0.6875rem] font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                  <span class="text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></span>
+                </p>
                 <p class="md:hidden text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
+              </div>
+              <div class="hidden md:flex items-center min-w-0">
+                <span class="inline-flex max-w-full px-2 py-0.5 rounded-md text-xs font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
               </div>
               <p class="hidden md:block text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
               <p class="text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
+              <p class="hidden md:block text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
               <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
             </div>
           </template>
@@ -272,12 +282,14 @@
         <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden">
           <div class="hidden md:grid gap-4 items-center px-5 py-3"
                :class="$store.auth.isAdmin
-                 ? 'grid-cols-[3rem_1.5fr_1fr_1fr_1fr_3rem_7rem]'
-                 : 'grid-cols-[3rem_1.5fr_1fr_1fr_1fr_3rem]'">
+                 ? 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem_7rem]'
+                 : 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem]'">
             <span class="label-sm text-center" x-text="$store.i18n.t('table.status')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.hostname')"></span>
+            <span class="label-sm" x-text="$store.i18n.t('table.domain')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.provider')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.ip_address')"></span>
+            <span class="label-sm" x-text="$store.i18n.t('table.protocol')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.last_sync')"></span>
             <span class="label-sm text-center" x-text="$store.i18n.t('table.active')"></span>
             <span x-show="$store.auth.isAdmin" class="label-sm text-right" x-text="$store.i18n.t('table.actions')"></span>
@@ -286,8 +298,8 @@
             <div class="grid grid-cols-1 md:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default"
                  :class="[
                    $store.auth.isAdmin
-                     ? 'md:grid-cols-[3rem_1.5fr_1fr_1fr_1fr_3rem_7rem]'
-                     : 'md:grid-cols-[3rem_1.5fr_1fr_1fr_1fr_3rem]',
+                     ? 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem_7rem]'
+                     : 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem]',
                    !rec.enabled && 'opacity-50'
                  ]">
               <div class="flex items-center justify-center">
@@ -295,10 +307,18 @@
               </div>
               <div>
                 <p class="font-medium text-sm truncate" x-text="buildHostname(rec)"></p>
+                <p class="md:hidden text-xs mt-0.5 flex flex-wrap items-center gap-2">
+                  <span class="inline-flex max-w-[min(100%,12rem)] px-1.5 py-0.5 rounded-md text-[0.6875rem] font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                  <span class="text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></span>
+                </p>
                 <p class="md:hidden text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
+              </div>
+              <div class="hidden md:flex items-center min-w-0">
+                <span class="inline-flex max-w-full px-2 py-0.5 rounded-md text-xs font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
               </div>
               <p class="hidden md:block text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
               <p class="text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
+              <p class="hidden md:block text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
               <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
               <div class="flex items-center justify-center">
                 <span class="material-symbols-outlined text-lg"

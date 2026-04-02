@@ -54,6 +54,36 @@ function buildHostname(rec) {
   return (rec.owner && rec.owner !== '@') ? rec.owner + '.' + rec.domain : rec.domain;
 }
 
+/** Stable pseudo-random color classes per domain string (same domain → same color). */
+const DOMAIN_TAG_PALETTE = [
+  'bg-violet-500/15 text-violet-800 dark:text-violet-200 ring-1 ring-inset ring-violet-500/35',
+  'bg-sky-500/15 text-sky-800 dark:text-sky-200 ring-1 ring-inset ring-sky-500/35',
+  'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 ring-1 ring-inset ring-emerald-500/35',
+  'bg-amber-500/15 text-amber-900 dark:text-amber-200 ring-1 ring-inset ring-amber-500/35',
+  'bg-rose-500/15 text-rose-800 dark:text-rose-200 ring-1 ring-inset ring-rose-500/35',
+  'bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 ring-1 ring-inset ring-cyan-500/35',
+  'bg-fuchsia-500/15 text-fuchsia-800 dark:text-fuchsia-200 ring-1 ring-inset ring-fuchsia-500/35',
+  'bg-lime-600/15 text-lime-900 dark:text-lime-200 ring-1 ring-inset ring-lime-600/35',
+  'bg-indigo-500/15 text-indigo-800 dark:text-indigo-200 ring-1 ring-inset ring-indigo-500/35',
+  'bg-teal-500/15 text-teal-800 dark:text-teal-200 ring-1 ring-inset ring-teal-500/35',
+];
+
+function domainTagClass(domain) {
+  const s = String(domain || '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return DOMAIN_TAG_PALETTE[Math.abs(h) % DOMAIN_TAG_PALETTE.length];
+}
+
+function ipVersionLabel(v) {
+  const k = String(v || 'ipv4').toLowerCase();
+  const key = { ipv4: 'ipversion.ipv4', ipv6: 'ipversion.ipv6', dual: 'ipversion.dual' }[k] || 'ipversion.ipv4';
+  return Alpine.store('i18n').t(key);
+}
+
 function statusDotClass(status) {
   const map = { success: 'st-success', error: 'st-error', updating: 'st-updating', pending: 'st-pending' };
   return map[status] || 'st-pending';
@@ -639,6 +669,8 @@ document.addEventListener('alpine:init', () => {
 
     relativeTime,
     buildHostname,
+    domainTagClass,
+    ipVersionLabel,
     statusDotClass,
     logLevelClass,
     logFilterClass,
