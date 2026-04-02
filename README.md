@@ -1,6 +1,14 @@
+![](/web/img/logo.png)
+
 # DDNS Agent
 
 Lightweight Dynamic DNS Updater with integrated Web Panel. Built with Go, Alpine.js, and Tailwind CSS.
+
+![](https://img.shields.io/github/v/release/Buffer379x/ddns-agent)
+
+![](https://img.shields.io/github/languages/code-size/Buffer379x/ddns-agent) ![](https://img.shields.io/github/repo-size/Buffer379x/ddns-agent)
+
+![](https://img.shields.io/github/license/Buffer379x/ddns-agent)
 
 ## Origin
 
