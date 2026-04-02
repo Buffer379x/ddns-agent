@@ -1,26 +1,26 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>ddns-agent</Name>
-  <Repository>ddns-agent:latest</Repository>
-  <Registry/>
+  <Repository>ghcr.io/buffer379x/ddns-agent:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
   <Branch>
     <Tag>latest</Tag>
     <TagDescription>Latest stable release</TagDescription>
   </Branch>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support/>
-  <Project/>
+  <Support>https://github.com/Buffer379x/ddns-agent</Support>
+  <Project>https://github.com/Buffer379x/ddns-agent</Project>
   <Overview>
     DDNS Agent is a lightweight, modern Dynamic DNS updater with an integrated web panel.
-    It supports 50+ DNS providers and features a beautiful management interface with
+    It supports 50+ DNS providers and features a management interface with
     real-time log streaming, webhook notifications, and automatic IP change detection.
-    First-time setup: Open the web panel and create your admin account.
+    First-time setup: Open the web UI and sign in with the default admin account, then change the password.
   </Overview>
   <Category>Network:DNS Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
-  <TemplateURL/>
-  <Icon/>
+  <TemplateURL>https://raw.githubusercontent.com/Buffer379x/ddns-agent/main/ddns-agent.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Buffer379x/ddns-agent/main/web/img/logo.png</Icon>
   <Description>
     DDNS Agent - Lightweight Dynamic DNS Updater with Web Panel.
     Supports 50+ providers including Cloudflare, DuckDNS, GoDaddy, Hetzner, Namecheap, and more.

@@ -2,6 +2,10 @@
 
 Lightweight Dynamic DNS Updater with integrated Web Panel. Built with Go, Alpine.js, and Tailwind CSS.
 
+## Origin
+
+This project grew out of ideas and patterns from **[ddns-updater](https://github.com/qdm12/ddns-updater)** by [qdm12](https://github.com/qdm12). That tool is excellent for editing a JSON configuration file, but on phones and tablets I often needed to change settings on the go—and maintaining `config.json` manually was too cumbersome. I therefore built a full web interface on top of a similar update model so hostnames, users, and options can be managed in the browser. To keep the two projects clearly separate in purpose and naming, this one is published as **DDNS Agent** rather than as a fork of the same name.
+
 ## Features
 
 - **52 DNS Providers** — Cloudflare, DuckDNS, GoDaddy, Hetzner, Namecheap, Porkbun, Route53, and 45 more
@@ -104,4 +108,4 @@ web/                  Frontend (Alpine.js + Tailwind CSS)
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
