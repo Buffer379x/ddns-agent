@@ -231,13 +231,13 @@
               <div>
                 <p class="font-medium text-sm truncate" x-text="buildHostname(rec)"></p>
                 <p class="md:hidden text-xs mt-0.5 flex flex-wrap items-center gap-2">
-                  <span class="inline-flex max-w-[min(100%,12rem)] px-1.5 py-0.5 rounded-md text-[0.6875rem] font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                  <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
                   <span class="text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></span>
                 </p>
                 <p class="md:hidden text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
               </div>
               <div class="hidden md:flex items-center min-w-0">
-                <span class="inline-flex max-w-full px-2 py-0.5 rounded-md text-xs font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
               </div>
               <p class="hidden md:block text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
               <p class="text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
@@ -308,13 +308,13 @@
               <div>
                 <p class="font-medium text-sm truncate" x-text="buildHostname(rec)"></p>
                 <p class="md:hidden text-xs mt-0.5 flex flex-wrap items-center gap-2">
-                  <span class="inline-flex max-w-[min(100%,12rem)] px-1.5 py-0.5 rounded-md text-[0.6875rem] font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                  <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
                   <span class="text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></span>
                 </p>
                 <p class="md:hidden text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
               </div>
               <div class="hidden md:flex items-center min-w-0">
-                <span class="inline-flex max-w-full px-2 py-0.5 rounded-md text-xs font-medium truncate" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
               </div>
               <p class="hidden md:block text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
               <p class="text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
@@ -647,7 +647,7 @@
             <select x-model="recordForm.ip_version" class="select">
               <option value="ipv4">IPv4</option>
               <option value="ipv6">IPv6</option>
-              <option value="both">IPv4 + IPv6</option>
+              <option value="dual">IPv4 + IPv6</option>
             </select>
           </div>
           <div class="flex items-center justify-between">

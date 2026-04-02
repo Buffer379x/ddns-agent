@@ -79,7 +79,8 @@ function domainTagClass(domain) {
 }
 
 function ipVersionLabel(v) {
-  const k = String(v || 'ipv4').toLowerCase();
+  let k = String(v || 'ipv4').toLowerCase();
+  if (k === 'both') k = 'dual'; // legacy form value; DB may still contain "both"
   const key = { ipv4: 'ipversion.ipv4', ipv6: 'ipversion.ipv6', dual: 'ipversion.dual' }[k] || 'ipversion.ipv4';
   return Alpine.store('i18n').t(key);
 }

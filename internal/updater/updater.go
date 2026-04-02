@@ -120,7 +120,7 @@ func (s *Service) updateAll(ctx context.Context) []error {
 			needV4 = true
 		case "ipv6":
 			needV6 = true
-		case "dual":
+		case "dual", "both": // "both" was used by an older UI option value
 			needV4 = true
 			needV6 = true
 		}
@@ -271,7 +271,7 @@ func (s *Service) pickIP(version string, v4, v6 netip.Addr) netip.Addr {
 	switch version {
 	case "ipv6":
 		return v6
-	case "dual":
+	case "dual", "both":
 		if v4.IsValid() {
 			return v4
 		}
