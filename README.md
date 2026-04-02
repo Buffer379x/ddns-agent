@@ -18,6 +18,7 @@ This project grew out of ideas and patterns from **[ddns-updater](https://github
 - **Multi-language** — English and German included, extensible via JSON language files
 - **Role-based Access** — Admin and Viewer roles
 - **Tiny Docker Image** — Scratch-based container, single static binary
+- **File log** — Persistent `agent.log` under `/data/logs` with daily rotation to `agent-YYYY-MM-DD.log`; archives older than 7 days are removed (configurable via `DDNS_LOG_RETENTION`)
 
 ## Quick Start
 
@@ -41,9 +42,6 @@ services:
       - "8080:8080"
     volumes:
       - ddns-data:/data
-    environment:
-      - DDNS_UPDATE_INTERVAL=5m
-
 volumes:
   ddns-data:
 ```
@@ -52,12 +50,12 @@ volumes:
 
 | Variable | Default | Description |
 |---|---|---|
-| `DDNS_DATA_DIR` | `/data` | Persistent data directory |
+| `DDNS_DATA_DIR` | `/data` | Persistent data directory (database, backups, `/logs`, encryption key) |
 | `DDNS_PORT` | `8080` | Web panel port |
-| `DDNS_UPDATE_INTERVAL` | `5m` | IP check interval |
 | `DDNS_COOLDOWN` | `5m` | Min time between updates per record |
 | `DDNS_HTTP_TIMEOUT` | `10s` | HTTP request timeout |
 | `DDNS_BACKUP_RETENTION` | `7` | Number of daily backups to keep |
+| `DDNS_LOG_RETENTION` | `7` | Days to keep rotated file logs under `/data/logs` (`agent-YYYY-MM-DD.log`) |
 | `DDNS_JWT_SECRET` | auto | JWT signing key (auto-generated if empty) |
 | `DDNS_ENCRYPTION_KEY` | auto | AES-256 key as 64 hex chars (auto-generated to `/data/.key`) |
 

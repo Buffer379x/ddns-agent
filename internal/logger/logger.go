@@ -33,10 +33,11 @@ type SSEBroadcaster interface {
 }
 
 type Logger struct {
-	slog   *slog.Logger
-	store  LogStore
-	sse    SSEBroadcaster
-	mu     sync.RWMutex
+	slog    *slog.Logger
+	store   LogStore
+	sse     SSEBroadcaster
+	fileLog *FileRotatingWriter
+	mu      sync.RWMutex
 }
 
 func New() *Logger {
@@ -45,8 +46,27 @@ func New() *Logger {
 	}
 }
 
-func (l *Logger) SetStore(store LogStore)       { l.mu.Lock(); l.store = store; l.mu.Unlock() }
-func (l *Logger) SetSSE(sse SSEBroadcaster)     { l.mu.Lock(); l.sse = sse; l.mu.Unlock() }
+func (l *Logger) SetStore(store LogStore)   { l.mu.Lock(); l.store = store; l.mu.Unlock() }
+func (l *Logger) SetSSE(sse SSEBroadcaster) { l.mu.Lock(); l.sse = sse; l.mu.Unlock() }
+
+// SetFileLog enables daily-rotated file logging under logDir (e.g. /data/logs/agent.log).
+func (l *Logger) SetFileLog(logDir string, retentionDays int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.fileLog = NewFileRotatingWriter(logDir, retentionDays)
+}
+
+// CloseFileLog closes the rotating file handle (e.g. on shutdown).
+func (l *Logger) CloseFileLog() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.fileLog == nil {
+		return nil
+	}
+	err := l.fileLog.Close()
+	l.fileLog = nil
+	return err
+}
 
 func (l *Logger) log(level Level, source, message string) {
 	entry := LogEntry{
@@ -66,9 +86,15 @@ func (l *Logger) log(level Level, source, message string) {
 	}
 
 	l.mu.RLock()
+	fileLog := l.fileLog
 	store := l.store
 	sse := l.sse
 	l.mu.RUnlock()
+
+	if fileLog != nil {
+		line := fmt.Sprintf("%s %-7s [%s] %s\n", entry.CreatedAt.Format("2006-01-02 15:04:05"), level, source, message)
+		_ = fileLog.WriteLine(line)
+	}
 
 	if store != nil {
 		_ = store.InsertLog(string(level), source, message)

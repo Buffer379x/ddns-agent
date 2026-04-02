@@ -38,14 +38,20 @@ func main() {
 	cfg := config.Load()
 	log := logger.New()
 
-	log.Info("main", "DDNS Agent v%s starting...", version)
-	log.Info("main", "data directory: %s", cfg.DataDir)
-
-	// Ensure data directory
+	// Ensure data + logs dirs before file logging so all messages go to agent.log
 	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
-		log.Error("main", "creating data directory: %v", err)
+		fmt.Fprintf(os.Stderr, "ddns-agent: creating data directory: %v\n", err)
 		os.Exit(1)
 	}
+	if err := os.MkdirAll(cfg.LogDir(), 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "ddns-agent: creating logs directory: %v\n", err)
+		os.Exit(1)
+	}
+	log.SetFileLog(cfg.LogDir(), cfg.LogRetention)
+
+	log.Info("main", "DDNS Agent v%s starting...", version)
+	log.Info("main", "data directory: %s", cfg.DataDir)
+	log.Info("main", "file log: %s/agent.log (daily rotation, archives kept %d days)", cfg.LogDir(), cfg.LogRetention)
 
 	// Database
 	db, err := database.New(cfg.DBPath())
@@ -136,6 +142,7 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 	srv.Shutdown(shutdownCtx)
+	_ = log.CloseFileLog()
 	log.Info("main", "goodbye")
 }
 

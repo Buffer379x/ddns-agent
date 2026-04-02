@@ -15,6 +15,7 @@ type Config struct {
 	JWTSecret       string
 	EncryptionKey   string
 	BackupRetention int
+	LogRetention    int // days of archived agent-YYYY-MM-DD.log files to keep under logs/
 }
 
 func Load() *Config {
@@ -27,11 +28,13 @@ func Load() *Config {
 		JWTSecret:       os.Getenv("DDNS_JWT_SECRET"),
 		EncryptionKey:   os.Getenv("DDNS_ENCRYPTION_KEY"),
 		BackupRetention: envOrDefaultInt("DDNS_BACKUP_RETENTION", 7),
+		LogRetention:    envOrDefaultInt("DDNS_LOG_RETENTION", 7),
 	}
 }
 
 func (c *Config) DBPath() string    { return c.DataDir + "/ddns-agent.db" }
 func (c *Config) BackupDir() string { return c.DataDir + "/backups" }
+func (c *Config) LogDir() string    { return c.DataDir + "/logs" }
 func (c *Config) KeyFile() string   { return c.DataDir + "/.key" }
 
 func envOrDefault(key, fallback string) string {
