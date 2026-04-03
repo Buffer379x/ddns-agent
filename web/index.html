@@ -699,7 +699,12 @@
                 </div>
               </template>
               <template x-if="field.type !== 'textarea' && field.type !== 'checkbox'">
-                <input :type="field.type || 'text'" x-model="recordForm.config[field.name]" class="input" :required="field.required" :placeholder="field.placeholder || ''">
+                <input
+                  :type="field.type === 'password' && !editingRecord ? 'text' : (field.type || 'text')"
+                  x-model="recordForm.config[field.name]"
+                  class="input"
+                  :required="field.type === 'password' ? (!editingRecord && field.required) : field.required"
+                  :placeholder="field.type === 'password' && editingRecord ? $store.i18n.t('hostnames.secret_unchanged_hint') : (field.placeholder || '')">
               </template>
               <p x-show="field.help" class="text-xs text-th-text-dim mt-1" x-text="field.help"></p>
             </div>

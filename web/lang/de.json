@@ -50,6 +50,7 @@
   "hostnames.save": "Eintrag speichern",
   "hostnames.cancel": "Abbrechen",
   "hostnames.delete_confirm": "Möchten Sie diesen Eintrag wirklich löschen?",
+  "hostnames.secret_unchanged_hint": "Leer lassen, um die gespeicherten Zugangsdaten beizubehalten. Neuen Wert nur eintragen, wenn Sie ihn ändern möchten.",
   "logs.title": "Ereignisprotokoll",
   "logs.subtitle": "Echtzeit-Stream von DNS-Updates und Systemereignissen.",
   "logs.live": "LIVE",

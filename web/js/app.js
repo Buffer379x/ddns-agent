@@ -313,6 +313,8 @@ document.addEventListener('alpine:init', () => {
     selectedProviderFields: [],
     showRecordModal: false,
     editingRecord: null,
+    /** Snapshot of parsed provider_config when opening edit; used to keep secrets if password fields are left blank. */
+    _recordConfigBackup: null,
     recordForm: { provider: '', domain: '', owner: '@', ip_version: 'ipv4', enabled: true, config: {} },
 
     logs: [],
@@ -431,6 +433,7 @@ document.addEventListener('alpine:init', () => {
 
     openAddRecord() {
       this.editingRecord = null;
+      this._recordConfigBackup = null;
       this.recordForm = { provider: '', domain: '', owner: '@', ip_version: 'ipv4', enabled: true, config: {} };
       this.selectedProviderFields = [];
       this.showRecordModal = true;
@@ -439,9 +442,21 @@ document.addEventListener('alpine:init', () => {
     async openEditRecord(rec) {
       this.editingRecord = rec;
       let cfg = {};
-      try { cfg = JSON.parse(rec.provider_config); } catch (_) {}
-      this.recordForm = { provider: rec.provider, domain: rec.domain, owner: rec.owner, ip_version: rec.ip_version, enabled: rec.enabled, config: cfg };
+      try { cfg = JSON.parse(rec.provider_config || '{}'); } catch (_) {}
+      this._recordConfigBackup = JSON.parse(JSON.stringify(cfg));
       await this.loadProviderFields(rec.provider);
+      const formCfg = { ...cfg };
+      for (const f of this.selectedProviderFields) {
+        if (f.type === 'password') formCfg[f.name] = '';
+      }
+      this.recordForm = {
+        provider: rec.provider,
+        domain: rec.domain,
+        owner: rec.owner,
+        ip_version: rec.ip_version,
+        enabled: rec.enabled,
+        config: formCfg,
+      };
       this.showRecordModal = true;
     },
 
@@ -451,13 +466,25 @@ document.addEventListener('alpine:init', () => {
     },
 
     async saveRecord() {
+      const cfg = { ...this.recordForm.config };
+      if (this.editingRecord && this._recordConfigBackup) {
+        for (const f of this.selectedProviderFields) {
+          if (f.type !== 'password') continue;
+          const v = cfg[f.name];
+          if (typeof v !== 'string' || v.trim() === '') {
+            if (this._recordConfigBackup[f.name] !== undefined) {
+              cfg[f.name] = this._recordConfigBackup[f.name];
+            }
+          }
+        }
+      }
       const payload = {
         provider: this.recordForm.provider,
         domain: this.recordForm.domain,
         owner: this.recordForm.owner || '@',
         ip_version: this.recordForm.ip_version,
         enabled: this.recordForm.enabled,
-        provider_config: JSON.stringify(this.recordForm.config),
+        provider_config: JSON.stringify(cfg),
       };
       const t = Alpine.store('i18n').t.bind(Alpine.store('i18n'));
       try {

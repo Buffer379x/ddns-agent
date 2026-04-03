@@ -66,6 +66,15 @@ func AdminOnly(next http.Handler) http.Handler {
 	})
 }
 
+func requestIsAdmin(r *http.Request) bool {
+	claims := auth.GetUserFromContext(r)
+	if claims == nil {
+		return false
+	}
+	role, _ := claims["role"].(string)
+	return role == "admin"
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -158,6 +167,18 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 
 // --- Records ---
 
+// decryptProviderConfig returns plaintext JSON for the API client. If decryption fails, s is returned as-is (legacy plaintext rows).
+func (h *Handler) decryptProviderConfig(s string) string {
+	if s == "" || h.encryptor == nil {
+		return s
+	}
+	dec, err := h.encryptor.Decrypt(s)
+	if err != nil {
+		return s
+	}
+	return dec
+}
+
 func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request) {
 	records, err := h.db.ListRecords()
 	if err != nil {
@@ -166,6 +187,12 @@ func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request) {
 	}
 	if records == nil {
 		records = []database.Record{}
+	}
+	// Decrypt provider_config only for admins (editing). Viewers keep ciphertext in API responses.
+	for i := range records {
+		if requestIsAdmin(r) {
+			records[i].ProviderConfig = h.decryptProviderConfig(records[i].ProviderConfig)
+		}
 	}
 	writeJSON(w, http.StatusOK, records)
 }
@@ -207,7 +234,9 @@ func (h *Handler) UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec.ID = existing.ID
-	if h.encryptor != nil && rec.ProviderConfig != "" {
+	if rec.ProviderConfig == "" {
+		rec.ProviderConfig = existing.ProviderConfig
+	} else if h.encryptor != nil {
 		encrypted, err := h.encryptor.Encrypt(rec.ProviderConfig)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "encrypting config")

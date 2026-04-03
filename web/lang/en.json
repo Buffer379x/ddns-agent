@@ -50,6 +50,7 @@
   "hostnames.save": "Save Record",
   "hostnames.cancel": "Cancel",
   "hostnames.delete_confirm": "Are you sure you want to delete this record?",
+  "hostnames.secret_unchanged_hint": "Leave blank to keep saved credentials. Enter a new value only if you want to change it.",
   "logs.title": "Event Log",
   "logs.subtitle": "Real-time stream of DNS updates and system events.",
   "logs.live": "LIVE",
