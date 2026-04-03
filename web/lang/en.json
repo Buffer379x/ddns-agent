@@ -19,6 +19,7 @@
   "overview.errors": "Errors",
   "table.status": "Status",
   "table.hostname": "Hostname",
+  "table.subdomain": "Subdomain",
   "table.domain": "Domain",
   "table.protocol": "Protocol",
   "table.provider": "Provider",

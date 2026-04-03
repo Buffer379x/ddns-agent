@@ -19,6 +19,7 @@
   "overview.errors": "Fehler",
   "table.status": "Status",
   "table.hostname": "Hostname",
+  "table.subdomain": "Subdomain",
   "table.domain": "Domain",
   "table.protocol": "Protokoll",
   "table.provider": "Anbieter",

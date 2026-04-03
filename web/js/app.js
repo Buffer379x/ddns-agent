@@ -54,6 +54,14 @@ function buildHostname(rec) {
   return (rec.owner && rec.owner !== '@') ? rec.owner + '.' + rec.domain : rec.domain;
 }
 
+/** Host/label part only (e.g. www); @ for apex/root DNS name. */
+function subdomainLabel(rec) {
+  if (!rec) return '';
+  const o = String(rec.owner || '').trim();
+  if (!o || o === '@') return '@';
+  return o;
+}
+
 /** Stable pseudo-random color classes per domain string (same domain → same color). */
 const DOMAIN_TAG_PALETTE = [
   'bg-violet-500/15 text-violet-800 dark:text-violet-200 ring-1 ring-inset ring-violet-500/35',
@@ -675,6 +683,7 @@ document.addEventListener('alpine:init', () => {
 
     relativeTime,
     buildHostname,
+    subdomainLabel,
     domainTagClass,
     ipVersionLabel,
     statusDotClass,
