@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"ddns-agent/internal/crypto"
@@ -30,10 +31,10 @@ type Service struct {
 	ipFetcher *ipcheck.Fetcher
 	encryptor *crypto.Encryptor
 	logger    *logger.Logger
-	webhooks  WebhookNotifier
-	client    *http.Client
-	period    time.Duration
-	cooldown  time.Duration
+	webhooks       WebhookNotifier
+	providerClient atomic.Value // *http.Client — DNS provider API calls
+	periodNs   int64 // update loop interval; atomic for SetPeriod from settings
+	cooldownNs int64 // time.Duration as nanoseconds; atomic for SetCooldown
 
 	mu        sync.Mutex
 	force     chan struct{}
@@ -43,37 +44,98 @@ type Service struct {
 func New(db *database.DB, ipFetcher *ipcheck.Fetcher, enc *crypto.Encryptor,
 	log *logger.Logger, webhooks WebhookNotifier,
 	period, cooldown, httpTimeout time.Duration) *Service {
-	return &Service{
+	s := &Service{
 		db:          db,
 		ipFetcher:   ipFetcher,
 		encryptor:   enc,
 		logger:      log,
 		webhooks:    webhooks,
-		client:      &http.Client{Timeout: httpTimeout},
-		period:      period,
-		cooldown:    cooldown,
 		force:       make(chan struct{}, 1),
 		forceResult: make(chan []error, 1),
 	}
+	s.providerClient.Store(&http.Client{Timeout: httpTimeout})
+	s.periodNs = period.Nanoseconds()
+	s.cooldownNs = cooldown.Nanoseconds()
+	return s
+}
+
+func (s *Service) providerHTTP() *http.Client {
+	return s.providerClient.Load().(*http.Client)
+}
+
+// SetHTTPTimeout updates timeouts for IP discovery and provider API requests (hot-reload from settings).
+func (s *Service) SetHTTPTimeout(d time.Duration) {
+	if d < time.Second {
+		d = time.Second
+	}
+	if d > 15*time.Minute {
+		d = 15 * time.Minute
+	}
+	s.providerClient.Store(&http.Client{Timeout: d})
+	if s.ipFetcher != nil {
+		s.ipFetcher.SetHTTPTimeout(d)
+	}
+	s.logger.Info("updater", "HTTP client timeout set to %s", d)
+}
+
+func (s *Service) period() time.Duration {
+	return time.Duration(atomic.LoadInt64(&s.periodNs))
+}
+
+// SetPeriod updates the interval between automatic IP checks (hot-reload from settings).
+func (s *Service) SetPeriod(d time.Duration) {
+	if d < time.Second {
+		d = time.Second
+	}
+	atomic.StoreInt64(&s.periodNs, d.Nanoseconds())
+	s.logger.Info("updater", "update interval set to %s", d)
+}
+
+// SetCooldown updates the minimum time between successful updates for the same record (hot-reload from settings).
+func (s *Service) SetCooldown(d time.Duration) {
+	if d < 0 {
+		d = 0
+	}
+	atomic.StoreInt64(&s.cooldownNs, d.Nanoseconds())
+	s.logger.Info("updater", "cooldown period set to %s", d)
+}
+
+func (s *Service) cooldown() time.Duration {
+	return time.Duration(atomic.LoadInt64(&s.cooldownNs))
 }
 
 func (s *Service) Start(ctx context.Context) {
-	s.logger.Info("updater", "starting update loop with interval %s", s.period)
+	p := s.period()
+	s.logger.Info("updater", "starting update loop with interval %s", p)
 	s.updateAll(ctx)
 
-	ticker := time.NewTicker(s.period)
-	defer ticker.Stop()
+	timer := time.NewTimer(p)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			s.logger.Info("updater", "shutting down")
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			s.updateAll(ctx)
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(s.period())
 		case <-s.force:
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
 			errs := s.updateAll(ctx)
 			s.forceResult <- errs
+			timer.Reset(s.period())
 		}
 	}
 }
@@ -194,7 +256,7 @@ func (s *Service) updateAll(ctx context.Context) []error {
 }
 
 func (s *Service) shouldUpdate(rec *database.Record) bool {
-	if rec.LastUpdate != nil && time.Since(*rec.LastUpdate) < s.cooldown && rec.Status == "success" {
+	if rec.LastUpdate != nil && time.Since(*rec.LastUpdate) < s.cooldown() && rec.Status == "success" {
 		return false
 	}
 	if rec.LastBan != nil && time.Since(*rec.LastBan) < time.Hour {
@@ -235,7 +297,7 @@ func (s *Service) updateRecord(ctx context.Context, rec *database.Record, ip net
 		return fmt.Errorf("%s: %s", fqdn, msg)
 	}
 
-	newIP, err := p.Update(ctx, s.client, ip)
+	newIP, err := p.Update(ctx, s.providerHTTP(), ip)
 	if err != nil {
 		msg := fmt.Sprintf("update failed: %v", err)
 		s.db.UpdateRecordStatus(rec.ID, "error", msg, "")

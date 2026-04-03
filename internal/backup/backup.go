@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"ddns-agent/internal/database"
@@ -15,11 +16,34 @@ import (
 type Service struct {
 	db        *database.DB
 	backupDir string
-	retention int
+	retention atomic.Int32 // number of automatic DB backups to keep under backupDir
 }
 
 func New(db *database.DB, backupDir string, retention int) *Service {
-	return &Service{db: db, backupDir: backupDir, retention: retention}
+	s := &Service{db: db, backupDir: backupDir}
+	if retention < 1 {
+		retention = 1
+	}
+	if retention > 365 {
+		retention = 365
+	}
+	s.retention.Store(int32(retention))
+	return s
+}
+
+func (s *Service) getRetention() int {
+	return int(s.retention.Load())
+}
+
+// SetRetention updates how many rotated backup files are kept (hot-reload from settings).
+func (s *Service) SetRetention(n int) {
+	if n < 1 {
+		n = 1
+	}
+	if n > 365 {
+		n = 365
+	}
+	s.retention.Store(int32(n))
 }
 
 // StartAutoBackup runs a daily backup in a goroutine
@@ -68,7 +92,7 @@ func (s *Service) cleanOld() error {
 		}
 	}
 	sort.Strings(backups)
-	for len(backups) > s.retention {
+	for len(backups) > s.getRetention() {
 		os.Remove(filepath.Join(s.backupDir, backups[0]))
 		backups = backups[1:]
 	}

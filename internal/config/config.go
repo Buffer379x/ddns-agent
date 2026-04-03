@@ -22,15 +22,16 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		DataDir:         envOrDefault("DDNS_DATA_DIR", "/data"),
-		Port:            envOrDefaultInt("DDNS_PORT", 8080),
-		UpdateInterval:  envOrDefaultDuration("DDNS_UPDATE_INTERVAL", 5*time.Minute),
-		CooldownPeriod:  envOrDefaultDuration("DDNS_COOLDOWN", 5*time.Minute),
-		HTTPTimeout:     envOrDefaultDuration("DDNS_HTTP_TIMEOUT", 10*time.Second),
+		DataDir: envOrDefault("DDNS_DATA_DIR", "/data"),
+		Port:    envOrDefaultInt("DDNS_PORT", 8080),
+		// Fallbacks when DB settings are missing or invalid (refresh_interval / cooldown_seconds / http_timeout_seconds from UI).
+		UpdateInterval: envOrDefaultDuration("DDNS_UPDATE_INTERVAL", 5*time.Minute),
+		CooldownPeriod: envOrDefaultDuration("DDNS_COOLDOWN", 5*time.Minute),
+		HTTPTimeout:    envOrDefaultDuration("DDNS_HTTP_TIMEOUT", 10*time.Second),
 		JWTSecret:       os.Getenv("DDNS_JWT_SECRET"),
 		EncryptionKey:   os.Getenv("DDNS_ENCRYPTION_KEY"),
-		BackupRetention: envOrDefaultInt("DDNS_BACKUP_RETENTION", 7),
-		LogRetention:    envOrDefaultInt("DDNS_LOG_RETENTION", 7),
+		BackupRetention: envOrDefaultInt("DDNS_BACKUP_RETENTION", 7), // fallback if backup_retention missing/invalid in DB
+		LogRetention:    envOrDefaultInt("DDNS_LOG_RETENTION", 7), // fallback if log_archive_days missing/invalid in DB
 		Timezone:        strings.TrimSpace(os.Getenv("DDNS_TIMEZONE")),
 	}
 }

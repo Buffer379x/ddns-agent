@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type Fetcher struct {
+	mu        sync.RWMutex
 	client    *http.Client
 	providers []provider
 	index     atomic.Uint64
@@ -37,15 +39,37 @@ var ipv6Providers = []provider{
 	{name: "ifconfig6", url: "https://ifconfig.co/ip"},
 }
 
+func dialTimeoutForHTTP(d time.Duration) time.Duration {
+	if d < 5*time.Second {
+		return d
+	}
+	return 5 * time.Second
+}
+
 func New(timeout time.Duration) *Fetcher {
 	return &Fetcher{
 		client: &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
-				DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+				DialContext: (&net.Dialer{Timeout: dialTimeoutForHTTP(timeout)}).DialContext,
 			},
 		},
 		providers: defaultProviders,
+	}
+}
+
+// SetHTTPTimeout replaces the HTTP client used for public IP lookups (hot-reload from settings).
+func (f *Fetcher) SetHTTPTimeout(d time.Duration) {
+	if d < time.Second {
+		d = time.Second
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.client = &http.Client{
+		Timeout: d,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{Timeout: dialTimeoutForHTTP(d)}).DialContext,
+		},
 	}
 }
 
@@ -89,7 +113,10 @@ func (f *Fetcher) fetchFrom(ctx context.Context, url string) (netip.Addr, error)
 		return netip.Addr{}, err
 	}
 
-	resp, err := f.client.Do(req)
+	f.mu.RLock()
+	client := f.client
+	f.mu.RUnlock()
+	resp, err := client.Do(req)
 	if err != nil {
 		return netip.Addr{}, err
 	}

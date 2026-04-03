@@ -341,11 +341,66 @@ func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if v, ok := settings["cooldown_seconds"]; ok {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil || n < 0 || n > 604800 {
+			writeError(w, http.StatusBadRequest, "invalid cooldown_seconds")
+			return
+		}
+	}
+	if v, ok := settings["refresh_interval"]; ok {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil || n < 60 || n > 604800 {
+			writeError(w, http.StatusBadRequest, "invalid refresh_interval")
+			return
+		}
+	}
+	if v, ok := settings["http_timeout_seconds"]; ok {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil || n < 1 || n > 900 {
+			writeError(w, http.StatusBadRequest, "invalid http_timeout_seconds")
+			return
+		}
+	}
+	if v, ok := settings["backup_retention"]; ok {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil || n < 1 || n > 365 {
+			writeError(w, http.StatusBadRequest, "invalid backup_retention")
+			return
+		}
+	}
+	if v, ok := settings["log_archive_days"]; ok {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil || n < 1 || n > 3650 {
+			writeError(w, http.StatusBadRequest, "invalid log_archive_days")
+			return
+		}
+	}
 	for k, v := range settings {
 		if err := h.db.SetSetting(k, v); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+	}
+	if v, ok := settings["cooldown_seconds"]; ok {
+		n, _ := strconv.Atoi(strings.TrimSpace(v))
+		h.updater.SetCooldown(time.Duration(n) * time.Second)
+	}
+	if v, ok := settings["refresh_interval"]; ok {
+		n, _ := strconv.Atoi(strings.TrimSpace(v))
+		h.updater.SetPeriod(time.Duration(n) * time.Second)
+	}
+	if v, ok := settings["http_timeout_seconds"]; ok {
+		n, _ := strconv.Atoi(strings.TrimSpace(v))
+		h.updater.SetHTTPTimeout(time.Duration(n) * time.Second)
+	}
+	if v, ok := settings["backup_retention"]; ok {
+		n, _ := strconv.Atoi(strings.TrimSpace(v))
+		h.backup.SetRetention(n)
+	}
+	if v, ok := settings["log_archive_days"]; ok {
+		n, _ := strconv.Atoi(strings.TrimSpace(v))
+		h.log.SetLogRetentionDays(n)
 	}
 	if _, ok := settings["app_timezone"]; ok {
 		h.syncAppTimezone(settings["app_timezone"])

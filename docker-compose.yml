@@ -10,10 +10,6 @@ services:
     environment:
       - DDNS_DATA_DIR=/data
       - DDNS_PORT=8080
-      - DDNS_UPDATE_INTERVAL=5m
-      - DDNS_COOLDOWN=5m
-      - DDNS_HTTP_TIMEOUT=10s
-      - DDNS_BACKUP_RETENTION=7
       # Optional: set a fixed JWT secret for persistent sessions across restarts
       # - DDNS_JWT_SECRET=your-secret-here
       # Optional: set a fixed encryption key (64 hex chars = 32 bytes)

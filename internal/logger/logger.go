@@ -83,6 +83,15 @@ func (l *Logger) SetFileLogLocation(loc *time.Location) {
 	}
 }
 
+// SetLogRetentionDays updates archived file retention under the log directory (hot-reload from settings).
+func (l *Logger) SetLogRetentionDays(days int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.fileLog != nil {
+		l.fileLog.SetRetentionDays(days)
+	}
+}
+
 // CloseFileLog closes the rotating file handle (e.g. on shutdown).
 func (l *Logger) CloseFileLog() error {
 	l.mu.Lock()

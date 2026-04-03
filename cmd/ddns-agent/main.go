@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -56,18 +57,53 @@ func main() {
 	}
 	defer db.Close()
 
-	initDefaults(db, cfg)
+	initDefaults(db)
+
+	updateInterval := cfg.UpdateInterval
+	if s, err := db.GetSetting("refresh_interval"); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n >= 60 {
+			updateInterval = time.Duration(n) * time.Second
+		}
+	}
+
+	cooldown := cfg.CooldownPeriod
+	if s, err := db.GetSetting("cooldown_seconds"); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n >= 0 {
+			cooldown = time.Duration(n) * time.Second
+		}
+	}
+
+	httpTimeout := cfg.HTTPTimeout
+	if s, err := db.GetSetting("http_timeout_seconds"); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n >= 1 {
+			httpTimeout = time.Duration(n) * time.Second
+		}
+	}
+
+	backupRetention := cfg.BackupRetention
+	if s, err := db.GetSetting("backup_retention"); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n >= 1 {
+			backupRetention = n
+		}
+	}
+
+	logRetention := cfg.LogRetention
+	if s, err := db.GetSetting("log_archive_days"); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n >= 1 {
+			logRetention = n
+		}
+	}
 
 	tzLoc := appTimeLocation(cfg, db)
 	log := logger.New()
 	log.SetTimeLocation(tzLoc)
-	log.SetFileLog(cfg.LogDir(), cfg.LogRetention, tzLoc)
+	log.SetFileLog(cfg.LogDir(), logRetention, tzLoc)
 	log.SetStore(db)
 
 	log.Info("main", "DDNS Agent v%s starting...", version)
 	log.Info("main", "app timezone (logs): %s", tzLoc.String())
 	log.Info("main", "data directory: %s", cfg.DataDir)
-	log.Info("main", "file log: %s/agent.log (daily rotation, archives kept %d days)", cfg.LogDir(), cfg.LogRetention)
+	log.Info("main", "file log: %s/agent.log (daily rotation, archives kept %d days)", cfg.LogDir(), logRetention)
 
 	encKey := cfg.EncryptionKey
 	if encKey == "" {
@@ -90,12 +126,12 @@ func main() {
 	}
 
 	authSvc := auth.NewService(db, jwtSecret)
-	ipFetcher := ipcheck.New(cfg.HTTPTimeout)
+	ipFetcher := ipcheck.New(httpTimeout)
 	sseBroker := sse.NewBroker(100)
 	webhookSvc := webhook.New(db)
-	backupSvc := backup.New(db, cfg.BackupDir(), cfg.BackupRetention)
+	backupSvc := backup.New(db, cfg.BackupDir(), backupRetention)
 	updaterSvc := updater.New(db, ipFetcher, encryptor, log, webhookSvc,
-		cfg.UpdateInterval, cfg.CooldownPeriod, cfg.HTTPTimeout)
+		updateInterval, cooldown, httpTimeout)
 
 	log.SetSSE(sseBroker)
 
@@ -162,11 +198,25 @@ func ensureDefaultAdmin(db *database.DB, log *logger.Logger) {
 	log.Info("main", "default admin user created (username: admin, password: admin)")
 }
 
-func initDefaults(db *database.DB, cfg *config.Config) {
+func initDefaults(db *database.DB) {
+	// Legacy: Go duration in update_interval → refresh_interval (seconds) for the web UI
+	if _, err := db.GetSetting("refresh_interval"); err != nil {
+		if legacy, err2 := db.GetSetting("update_interval"); err2 == nil && strings.TrimSpace(legacy) != "" {
+			if d, err3 := time.ParseDuration(strings.TrimSpace(legacy)); err3 == nil {
+				_ = db.SetSetting("refresh_interval", strconv.Itoa(int(d/time.Second)))
+			}
+		}
+	}
+
+	// First install: sensible defaults (intervals, HTTP timeout, backup file count)
 	defaults := map[string]string{
-		"update_interval": cfg.UpdateInterval.String(),
-		"theme":           "auto",
-		"language":        "en",
+		"refresh_interval":     "300",
+		"cooldown_seconds":     "300",
+		"http_timeout_seconds": "10",
+		"backup_retention":     "7",
+		"log_archive_days":     "7",
+		"theme":                "auto",
+		"language":             "en",
 	}
 	for k, v := range defaults {
 		if _, err := db.GetSetting(k); err != nil {

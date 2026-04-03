@@ -166,6 +166,20 @@ func (w *FileRotatingWriter) SetLocation(loc *time.Location) {
 	w.loc = loc
 }
 
+// SetRetentionDays updates how many calendar days of agent-YYYY-MM-DD.log archives are kept (hot-reload from settings).
+func (w *FileRotatingWriter) SetRetentionDays(days int) {
+	if days < 1 {
+		days = 1
+	}
+	if days > 3650 {
+		days = 3650
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.retention = days
+	w.pruneArchives()
+}
+
 // Close releases the open log file.
 func (w *FileRotatingWriter) Close() error {
 	w.mu.Lock()

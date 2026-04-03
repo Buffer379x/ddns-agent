@@ -323,7 +323,7 @@ document.addEventListener('alpine:init', () => {
     logSearch: '',
     _sse: null,
 
-    settingsForm: { refresh_interval: '300', app_timezone: '' },
+    settingsForm: { refresh_interval: '300', app_timezone: '', cooldown_seconds: '300', http_timeout_seconds: '10', backup_retention: '7', log_archive_days: '7' },
     webhooks: [],
     showImportModal: false,
     pendingImportBody: null,
@@ -581,6 +581,10 @@ document.addEventListener('alpine:init', () => {
           this.settingsForm = {
             refresh_interval: d.refresh_interval || '300',
             app_timezone: d.app_timezone || '',
+            cooldown_seconds: d.cooldown_seconds != null && d.cooldown_seconds !== '' ? String(d.cooldown_seconds) : '300',
+            http_timeout_seconds: d.http_timeout_seconds != null && d.http_timeout_seconds !== '' ? String(d.http_timeout_seconds) : '10',
+            backup_retention: d.backup_retention != null && d.backup_retention !== '' ? String(d.backup_retention) : '7',
+            log_archive_days: d.log_archive_days != null && d.log_archive_days !== '' ? String(d.log_archive_days) : '7',
           };
         }
       } catch (_) {}

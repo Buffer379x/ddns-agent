@@ -16,7 +16,7 @@
     It supports 50+ DNS providers and features a management interface with
     real-time log streaming, webhook notifications, and automatic IP change detection.
     Default login: username admin, password admin — change the password after first sign-in.
-    Persistent file logging: /data/logs/agent.log (rotates daily to agent-YYYY-MM-DD.log; archives kept 7 days).
+    Persistent file logging: /data/logs/agent.log (rotates daily to agent-YYYY-MM-DD.log; archive retention configurable in Settings).
   </Overview>
   <Category>Network:DNS Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
@@ -27,7 +27,7 @@
     Default credentials: admin / admin (change after first login).
     Supports 50+ providers including Cloudflare, DuckDNS, GoDaddy, Hetzner, Namecheap, and more.
     Features: Real-time logs, webhook notifications, IPv4/IPv6, encrypted credentials, auto-backup.
-    Writes /data/logs/agent.log with daily rotation; archived logs kept 7 days.
+    Writes /data/logs/agent.log with daily rotation; log archive retention is configurable in Settings.
   </Description>
   <DonateText/>
   <DonateLink/>
@@ -52,10 +52,6 @@
   </Changes>
   <Config Name="Web UI Port" Target="8080" Default="8080" Mode="tcp" Description="Web interface port" Type="Port" Display="always" Required="true" Mask="false">8080</Config>
   <Config Name="Data Directory" Target="/data" Default="/mnt/user/appdata/ddns-agent" Mode="rw" Description="Persistent storage: database, backups, encryption key, and /data/logs (agent.log)" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/ddns-agent</Config>
-  <Config Name="Cooldown Period" Target="DDNS_COOLDOWN" Default="5m" Description="Minimum time between updates for the same record" Type="Variable" Display="always" Required="false" Mask="false">5m</Config>
-  <Config Name="HTTP Timeout" Target="DDNS_HTTP_TIMEOUT" Default="10s" Description="Timeout for HTTP requests to IP check services and provider APIs" Type="Variable" Display="always" Required="false" Mask="false">10s</Config>
-  <Config Name="Backup Retention" Target="DDNS_BACKUP_RETENTION" Default="7" Description="Number of daily database backups to keep" Type="Variable" Display="advanced" Required="false" Mask="false">7</Config>
-  <Config Name="Log Archive Retention" Target="DDNS_LOG_RETENTION" Default="7" Description="Days to keep rotated log files under /data/logs (agent-YYYY-MM-DD.log)" Type="Variable" Display="advanced" Required="false" Mask="false">7</Config>
   <Config Name="JWT Secret" Target="DDNS_JWT_SECRET" Default="" Description="Fixed JWT secret for persistent sessions (auto-generated if empty)" Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="Encryption Key" Target="DDNS_ENCRYPTION_KEY" Default="" Description="AES-256 encryption key as 64 hex chars (auto-generated and saved to /data/.key if empty)" Type="Variable" Display="advanced" Required="false" Mask="true"/>
 </Container>
