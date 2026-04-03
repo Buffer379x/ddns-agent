@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"io/fs"
 	"net/http"
@@ -263,6 +264,10 @@ func (h *Handler) DeleteRecord(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RefreshRecord(w http.ResponseWriter, r *http.Request) {
 	id := paramInt(r, "id")
 	if err := h.updater.ForceUpdateRecord(r.Context(), id); err != nil {
+		if errors.Is(err, updater.ErrRecordDisabled) {
+			writeError(w, http.StatusBadRequest, "record is disabled")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

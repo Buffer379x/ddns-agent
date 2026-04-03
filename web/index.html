@@ -328,7 +328,7 @@
                   </td>
                   <td x-show="$store.auth.isAdmin" class="px-3 py-3.5 text-right align-middle whitespace-nowrap">
                     <span class="inline-flex items-center gap-1">
-                      <button @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
+                      <button type="button" x-show="rec.enabled" @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
                         <span class="material-symbols-outlined text-base">refresh</span>
                       </button>
                       <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
@@ -368,7 +368,7 @@
                         x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
                 </div>
                 <div x-show="$store.auth.isAdmin" class="flex items-center gap-1 justify-end">
-                  <button @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
+                  <button type="button" x-show="rec.enabled" @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
                     <span class="material-symbols-outlined text-base">refresh</span>
                   </button>
                   <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">

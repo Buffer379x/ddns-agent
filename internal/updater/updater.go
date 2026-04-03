@@ -3,6 +3,7 @@ package updater
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -16,6 +17,9 @@ import (
 	"ddns-agent/internal/provider"
 	"ddns-agent/internal/provider/constants"
 )
+
+// ErrRecordDisabled is returned when a refresh is requested for a record with enabled=false.
+var ErrRecordDisabled = errors.New("record is disabled")
 
 type WebhookNotifier interface {
 	Notify(event, message string)
@@ -90,6 +94,9 @@ func (s *Service) ForceUpdateRecord(ctx context.Context, recordID int) error {
 	rec, err := s.db.GetRecord(recordID)
 	if err != nil {
 		return fmt.Errorf("record not found: %w", err)
+	}
+	if !rec.Enabled {
+		return ErrRecordDisabled
 	}
 
 	ip, err := s.getIPForVersion(ctx, rec.IPVersion)
