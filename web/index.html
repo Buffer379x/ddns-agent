@@ -211,31 +211,31 @@
           </div>
         </div>
 
-        <!-- Records Table (read-only, only active records) — no Domain column -->
-        <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden">
-          <div class="hidden md:grid md:grid-cols-[2.5rem_1.35fr_1fr_1fr_5.5rem_1fr] gap-4 items-center px-5 py-3">
+        <!-- Records Table (read-only, only active records) — no Domain column; minmax(0,fr) so columns fill row width -->
+        <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden w-full min-w-0">
+          <div class="hidden md:grid w-full min-w-0 md:grid-cols-[2.5rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem_minmax(0,1fr)] gap-4 items-center px-5 py-3">
             <span class="label-sm" x-text="$store.i18n.t('table.status')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.hostname')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.provider')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.ip_address')"></span>
+            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.hostname')"></span>
+            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.provider')"></span>
+            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.ip_address')"></span>
             <span class="label-sm" x-text="$store.i18n.t('table.protocol')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.last_sync')"></span>
+            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.last_sync')"></span>
           </div>
           <template x-for="rec in activeRecords" :key="rec.id">
-            <div class="grid grid-cols-1 md:grid-cols-[2.5rem_1.35fr_1fr_1fr_5.5rem_1fr] gap-2 md:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default">
-              <div class="flex items-center gap-2 md:justify-center">
+            <div class="grid grid-cols-1 w-full min-w-0 md:grid-cols-[2.5rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem_minmax(0,1fr)] gap-2 md:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default">
+              <div class="flex items-center gap-2 md:justify-center shrink-0">
                 <span class="status-dot" :class="statusDotClass(rec.status)"></span>
                 <span class="md:hidden label-sm capitalize" x-text="rec.status"></span>
               </div>
-              <div>
+              <div class="min-w-0">
                 <p class="font-medium text-sm truncate" x-text="buildHostname(rec)"></p>
                 <p class="md:hidden text-xs mt-0.5 text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
                 <p class="md:hidden text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
               </div>
-              <p class="hidden md:block text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
-              <p class="text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
+              <p class="hidden md:block min-w-0 text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
+              <p class="min-w-0 text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
               <p class="hidden md:block text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
-              <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
+              <p class="min-w-0 text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
             </div>
           </template>
           <div x-show="activeRecords.length === 0" class="text-center py-20 text-th-text-dim">
@@ -271,66 +271,97 @@
           </div>
         </div>
 
-        <!-- Records List Table -->
-        <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden">
-          <div class="hidden md:grid gap-4 items-center px-5 py-3"
-               :class="$store.auth.isAdmin
-                 ? 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem_7rem]'
-                 : 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem]'">
-            <span class="label-sm text-center" x-text="$store.i18n.t('table.status')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.subdomain')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.domain')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.provider')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.ip_address')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.protocol')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.last_sync')"></span>
-            <span class="label-sm text-center" x-text="$store.i18n.t('table.active')"></span>
-            <span x-show="$store.auth.isAdmin" class="label-sm text-right" x-text="$store.i18n.t('table.actions')"></span>
+        <!-- Desktop: real <table> (table-layout:auto) so columns align across rows and width follows content. Mobile: stacked cards. -->
+        <div class="bg-th-surface rounded-xl shadow-soft overflow-x-auto w-full min-w-0">
+          <table class="hidden md:table min-w-full w-max border-collapse table-auto">
+            <thead>
+              <tr>
+                <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.status')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.subdomain')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.domain')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.provider')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.ip_address')"></th>
+                <th scope="col" class="whitespace-nowrap px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.protocol')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.last_sync')"></th>
+                <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.active')"></th>
+                <th scope="col" x-show="$store.auth.isAdmin" class="px-3 py-3 text-right label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.actions')"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="rec in sortedRecords" :key="rec.id">
+                <tr class="hover:bg-th-surface-low transition-colors duration-150"
+                    :class="!rec.enabled && 'opacity-50'">
+                  <td class="px-3 py-3.5 text-center align-middle">
+                    <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                  </td>
+                  <td class="px-3 py-3.5 align-middle text-sm font-medium [overflow-wrap:anywhere] break-words" x-text="subdomainLabel(rec)"></td>
+                  <td class="px-3 py-3.5 align-middle">
+                    <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                  </td>
+                  <td class="px-3 py-3.5 align-middle text-sm text-th-text-dim whitespace-nowrap" x-text="providerLabel(rec.provider)"></td>
+                  <td class="px-3 py-3.5 align-middle font-mono text-sm text-th-text-dim tabular-nums whitespace-nowrap" x-text="rec.current_ip || '—'"></td>
+                  <td class="whitespace-nowrap px-3 py-3.5 align-middle text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></td>
+                  <td class="px-3 py-3.5 align-middle text-xs text-th-text-dim whitespace-nowrap" x-text="relativeTime(rec.last_update)"></td>
+                  <td class="px-3 py-3.5 text-center align-middle">
+                    <span class="material-symbols-outlined text-lg"
+                          :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
+                          x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
+                  </td>
+                  <td x-show="$store.auth.isAdmin" class="px-3 py-3.5 text-right align-middle whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1">
+                      <button @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
+                        <span class="material-symbols-outlined text-base">refresh</span>
+                      </button>
+                      <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
+                        <span class="material-symbols-outlined text-base">edit</span>
+                      </button>
+                      <button @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
+                        <span class="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+
+          <div class="md:hidden">
+            <template x-for="rec in sortedRecords" :key="rec.id">
+              <div class="grid grid-cols-1 gap-2 px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default"
+                   :class="!rec.enabled && 'opacity-50'">
+                <div class="flex items-center justify-center shrink-0">
+                  <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-medium text-sm [overflow-wrap:anywhere] break-words" x-text="subdomainLabel(rec)"></p>
+                  <p class="text-xs mt-0.5 flex flex-wrap items-center gap-2 min-w-0 overflow-x-auto">
+                    <span class="domain-tag max-w-full shrink-0" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                    <span class="text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></span>
+                  </p>
+                  <p class="text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
+                </div>
+                <p class="text-sm font-mono text-th-text-dim break-all" x-text="rec.current_ip || '—'"></p>
+                <p class="text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
+                <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
+                <div class="flex items-center justify-center">
+                  <span class="material-symbols-outlined text-lg"
+                        :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
+                        x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
+                </div>
+                <div x-show="$store.auth.isAdmin" class="flex items-center gap-1 justify-end">
+                  <button @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
+                    <span class="material-symbols-outlined text-base">refresh</span>
+                  </button>
+                  <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                  </button>
+                  <button @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
+                    <span class="material-symbols-outlined text-base">delete</span>
+                  </button>
+                </div>
+              </div>
+            </template>
           </div>
-          <template x-for="rec in sortedRecords" :key="rec.id">
-            <div class="grid grid-cols-1 md:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default"
-                 :class="[
-                   $store.auth.isAdmin
-                     ? 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem_7rem]'
-                     : 'md:grid-cols-[3rem_1.35fr_7rem_1fr_1fr_5.5rem_1fr_3rem]',
-                   !rec.enabled && 'opacity-50'
-                 ]">
-              <div class="flex items-center justify-center">
-                <span class="status-dot" :class="statusDotClass(rec.status)"></span>
-              </div>
-              <div>
-                <p class="font-medium text-sm truncate" x-text="subdomainLabel(rec)"></p>
-                <p class="md:hidden text-xs mt-0.5 flex flex-wrap items-center gap-2">
-                  <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
-                  <span class="text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></span>
-                </p>
-                <p class="md:hidden text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
-              </div>
-              <div class="hidden md:flex items-center min-w-0">
-                <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
-              </div>
-              <p class="hidden md:block text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
-              <p class="text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
-              <p class="hidden md:block text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
-              <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
-              <div class="flex items-center justify-center">
-                <span class="material-symbols-outlined text-lg"
-                      :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
-                      x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
-              </div>
-              <div x-show="$store.auth.isAdmin" class="flex items-center gap-1 justify-end">
-                <button @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
-                  <span class="material-symbols-outlined text-base">refresh</span>
-                </button>
-                <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
-                  <span class="material-symbols-outlined text-base">edit</span>
-                </button>
-                <button @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
-                  <span class="material-symbols-outlined text-base">delete</span>
-                </button>
-              </div>
-            </div>
-          </template>
           <div x-show="records.length === 0" class="text-center py-20 text-th-text-dim">
             <span class="material-symbols-outlined text-5xl opacity-20 block mb-3">dns</span>
             <p class="text-sm mb-4" x-text="$store.i18n.t('table.no_records')"></p>
