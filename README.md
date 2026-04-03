@@ -32,6 +32,40 @@ Parts of this codebase were developed with assistance from **Claude Code** (Anth
 - **Tiny Docker Image** — Scratch-based container, single static binary
 - **File log** — Persistent `agent.log` under `/data/logs` with daily rotation to `agent-YYYY-MM-DD.log`; archive retention is configurable under **Settings → Advanced**
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/screenshot1.png" alt="DDNS Agent — screenshot 1" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/screenshot2.png" alt="DDNS Agent — screenshot 2" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/screenshot3.png" alt="DDNS Agent — screenshot 3" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/screenshot4.png" alt="DDNS Agent — screenshot 4" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/screenshot5.png" alt="DDNS Agent — screenshot 5" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/screenshot6.png" alt="DDNS Agent — screenshot 6" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/screenshot7.png" alt="DDNS Agent — screenshot 7" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/screenhot8.png" alt="DDNS Agent — screenshot 8" width="920" />
+</p>
+
 ## Quick Start
 
 ```bash
