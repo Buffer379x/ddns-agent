@@ -211,33 +211,52 @@
           </div>
         </div>
 
-        <!-- Records Table (read-only, only active records) — no Domain column; minmax(0,fr) so columns fill row width -->
-        <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden w-full min-w-0">
-          <div class="hidden md:grid w-full min-w-0 md:grid-cols-[2.5rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem_minmax(0,1fr)] gap-4 items-center px-5 py-3">
-            <span class="label-sm" x-text="$store.i18n.t('table.status')"></span>
-            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.hostname')"></span>
-            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.provider')"></span>
-            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.ip_address')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('table.protocol')"></span>
-            <span class="label-sm min-w-0" x-text="$store.i18n.t('table.last_sync')"></span>
+        <!-- Records Table (read-only, active records): same layout as Hostnames — real table, overflow-x-auto, no row borders -->
+        <div class="bg-th-surface rounded-xl shadow-soft overflow-x-auto w-full min-w-0">
+          <table class="hidden md:table min-w-full w-max border-collapse table-auto">
+            <thead>
+              <tr>
+                <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.status')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.hostname')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.provider')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.ip_address')"></th>
+                <th scope="col" class="whitespace-nowrap px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.protocol')"></th>
+                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.last_sync')"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="rec in activeRecords" :key="rec.id">
+                <tr class="hover:bg-th-surface-low transition-colors duration-150 cursor-default">
+                  <td class="px-3 py-3.5 text-center align-middle">
+                    <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                  </td>
+                  <td class="px-3 py-3.5 align-middle text-sm font-medium [overflow-wrap:anywhere] break-words" x-text="buildHostname(rec)"></td>
+                  <td class="px-3 py-3.5 align-middle text-sm text-th-text-dim whitespace-nowrap" x-text="providerLabel(rec.provider)"></td>
+                  <td class="px-3 py-3.5 align-middle font-mono text-sm text-th-text-dim tabular-nums whitespace-nowrap" x-text="rec.current_ip || '—'"></td>
+                  <td class="whitespace-nowrap px-3 py-3.5 align-middle text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></td>
+                  <td class="px-3 py-3.5 align-middle text-xs text-th-text-dim whitespace-nowrap" x-text="relativeTime(rec.last_update)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+
+          <div class="md:hidden">
+            <template x-for="rec in activeRecords" :key="rec.id">
+              <div class="grid grid-cols-1 gap-2 px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default">
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                  <span class="label-sm capitalize" x-text="rec.status"></span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-medium text-sm [overflow-wrap:anywhere] break-words" x-text="buildHostname(rec)"></p>
+                  <p class="text-xs mt-0.5 text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
+                  <p class="text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
+                </div>
+                <p class="text-sm font-mono text-th-text-dim break-all" x-text="rec.current_ip || '—'"></p>
+                <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
+              </div>
+            </template>
           </div>
-          <template x-for="rec in activeRecords" :key="rec.id">
-            <div class="grid grid-cols-1 w-full min-w-0 md:grid-cols-[2.5rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem_minmax(0,1fr)] gap-2 md:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default">
-              <div class="flex items-center gap-2 md:justify-center shrink-0">
-                <span class="status-dot" :class="statusDotClass(rec.status)"></span>
-                <span class="md:hidden label-sm capitalize" x-text="rec.status"></span>
-              </div>
-              <div class="min-w-0">
-                <p class="font-medium text-sm truncate" x-text="buildHostname(rec)"></p>
-                <p class="md:hidden text-xs mt-0.5 text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
-                <p class="md:hidden text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
-              </div>
-              <p class="hidden md:block min-w-0 text-sm text-th-text-dim truncate" x-text="providerLabel(rec.provider)"></p>
-              <p class="min-w-0 text-sm font-mono text-th-text-dim truncate" x-text="rec.current_ip || '—'"></p>
-              <p class="hidden md:block text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
-              <p class="min-w-0 text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
-            </div>
-          </template>
           <div x-show="activeRecords.length === 0" class="text-center py-20 text-th-text-dim">
             <span class="material-symbols-outlined text-5xl opacity-20 block mb-3">dns</span>
             <p class="text-sm" x-text="$store.i18n.t('table.no_records')"></p>
