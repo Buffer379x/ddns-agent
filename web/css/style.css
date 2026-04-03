@@ -332,3 +332,39 @@ html.dark .log-message { color: #ccd6f6; }
   letter-spacing: 0.05em;
   color: var(--c-text-dim);
 }
+
+/*
+ * Responsive layout toggles for tables / user list.
+ * Do not use Tailwind .hidden or .md:hidden on these wrappers: the Play CDN may
+ * inject utilities after this file with display:none !important, which then wins
+ * over earlier rules and hides desktop/tablet layouts.
+ */
+.ddns-layout-md-desktop {
+  display: none;
+}
+.ddns-layout-md-mobile {
+  display: block;
+}
+@media (min-width: 768px) {
+  .ddns-layout-md-desktop {
+    display: block !important;
+  }
+  .ddns-layout-md-mobile {
+    display: none !important;
+  }
+}
+
+.ddns-layout-sm-desktop {
+  display: none;
+}
+.ddns-layout-sm-mobile {
+  display: block;
+}
+@media (min-width: 640px) {
+  .ddns-layout-sm-desktop {
+    display: block !important;
+  }
+  .ddns-layout-sm-mobile {
+    display: none !important;
+  }
+}

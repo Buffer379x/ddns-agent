@@ -49,9 +49,10 @@
     })();
   </script>
 
-  <link rel="stylesheet" href="css/style.css">
   <script defer src="js/app.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  <!-- After Tailwind’s injected <style>; ensures layout toggles win the cascade -->
+  <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body class="bg-th-bg text-th-text antialiased transition-colors duration-300 min-h-screen">
@@ -222,9 +223,10 @@
           </div>
         </div>
 
-        <!-- Records Table (read-only, active records): same layout as Hostnames — real table, overflow-x-auto, no row borders -->
-        <div class="bg-th-surface rounded-xl shadow-soft overflow-x-auto w-full min-w-0">
-          <table class="hidden md:table min-w-full w-max border-collapse table-auto">
+        <!-- Records Table: visibility via .ddns-layout-md-* only (no Tailwind .hidden on wrapper) -->
+        <div class="bg-th-surface rounded-xl shadow-soft w-full min-w-0">
+          <div class="ddns-layout-md-desktop overflow-x-auto w-full min-w-0">
+          <table class="min-w-full w-max border-collapse table-auto">
             <thead>
               <tr>
                 <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.status')"></th>
@@ -250,22 +252,41 @@
               </template>
             </tbody>
           </table>
+          </div>
 
-          <div class="md:hidden">
+          <div class="ddns-layout-md-mobile p-3 space-y-3">
             <template x-for="rec in activeRecords" :key="rec.id">
-              <div class="grid grid-cols-1 gap-2 px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default">
-                <div class="flex items-center gap-2 shrink-0">
-                  <span class="status-dot" :class="statusDotClass(rec.status)"></span>
-                  <span class="label-sm capitalize" x-text="rec.status"></span>
+              <article class="rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="status-dot shrink-0" :class="statusDotClass(rec.status)"></span>
+                    <span class="text-xs font-medium uppercase tracking-wide text-th-text-dim" x-text="$store.i18n.t('table.status')"></span>
+                  </div>
+                  <span class="text-sm font-medium capitalize truncate" x-text="rec.status"></span>
                 </div>
-                <div class="min-w-0">
-                  <p class="font-medium text-sm [overflow-wrap:anywhere] break-words" x-text="buildHostname(rec)"></p>
-                  <p class="text-xs mt-0.5 text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
-                  <p class="text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
-                </div>
-                <p class="text-sm font-mono text-th-text-dim break-all" x-text="rec.current_ip || '—'"></p>
-                <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
-              </div>
+                <dl class="space-y-2.5 text-sm">
+                  <div class="flex justify-between gap-3 items-start">
+                    <dt class="text-xs text-th-text-dim shrink-0 pt-0.5" x-text="$store.i18n.t('table.hostname')"></dt>
+                    <dd class="font-medium text-right [overflow-wrap:anywhere] break-words" x-text="buildHostname(rec)"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.provider')"></dt>
+                    <dd class="text-th-text-dim text-right" x-text="providerLabel(rec.provider)"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.ip_address')"></dt>
+                    <dd class="font-mono tabular-nums text-th-text-dim text-right break-all" x-text="rec.current_ip || '—'"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.protocol')"></dt>
+                    <dd class="text-xs font-medium tabular-nums text-th-text-dim" x-text="ipVersionLabel(rec.ip_version)"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.last_sync')"></dt>
+                    <dd class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></dd>
+                  </div>
+                </dl>
+              </article>
             </template>
           </div>
           <div x-show="activeRecords.length === 0" class="text-center py-20 text-th-text-dim">
@@ -301,9 +322,10 @@
           </div>
         </div>
 
-        <!-- Desktop: real <table> (table-layout:auto) so columns align across rows and width follows content. Mobile: stacked cards. -->
-        <div class="bg-th-surface rounded-xl shadow-soft overflow-x-auto w-full min-w-0">
-          <table class="hidden md:table min-w-full w-max border-collapse table-auto">
+        <!-- Desktop/mobile split via .ddns-layout-md-* only -->
+        <div class="bg-th-surface rounded-xl shadow-soft w-full min-w-0">
+          <div class="ddns-layout-md-desktop overflow-x-auto w-full min-w-0">
+          <table class="min-w-full w-max border-collapse table-auto">
             <thead>
               <tr>
                 <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.status')"></th>
@@ -354,42 +376,64 @@
               </template>
             </tbody>
           </table>
+          </div>
 
-          <div class="md:hidden">
+          <div class="ddns-layout-md-mobile p-3 space-y-3">
             <template x-for="rec in sortedRecords" :key="rec.id">
-              <div class="grid grid-cols-1 gap-2 px-5 py-3.5 hover:bg-th-surface-low transition-colors duration-150 cursor-default"
-                   :class="!rec.enabled && 'opacity-50'">
-                <div class="flex items-center justify-center shrink-0">
-                  <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+              <article class="rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3"
+                       :class="!rec.enabled && 'opacity-50'">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xs text-th-text-dim mb-0.5" x-text="$store.i18n.t('table.subdomain')"></p>
+                    <p class="font-semibold text-sm [overflow-wrap:anywhere] break-words" x-text="subdomainLabel(rec)"></p>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                    <span class="text-xs capitalize text-th-text-dim" x-text="rec.status"></span>
+                  </div>
                 </div>
                 <div class="min-w-0">
-                  <p class="font-medium text-sm [overflow-wrap:anywhere] break-words" x-text="subdomainLabel(rec)"></p>
-                  <p class="text-xs mt-0.5 flex flex-wrap items-center gap-2 min-w-0 overflow-x-auto">
-                    <span class="domain-tag max-w-full shrink-0" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
-                    <span class="text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></span>
-                  </p>
-                  <p class="text-xs text-th-text-dim" x-text="providerLabel(rec.provider)"></p>
+                  <p class="text-xs text-th-text-dim mb-1" x-text="$store.i18n.t('table.domain')"></p>
+                  <span class="domain-tag max-w-full" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
                 </div>
-                <p class="text-sm font-mono text-th-text-dim break-all" x-text="rec.current_ip || '—'"></p>
-                <p class="text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></p>
-                <p class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></p>
-                <div class="flex items-center justify-center">
-                  <span class="material-symbols-outlined text-lg"
-                        :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
-                        x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
-                </div>
-                <div x-show="$store.auth.isAdmin" class="flex items-center gap-1 justify-end">
+                <dl class="space-y-2.5 text-sm">
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.provider')"></dt>
+                    <dd class="text-th-text-dim text-right" x-text="providerLabel(rec.provider)"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.ip_address')"></dt>
+                    <dd class="font-mono tabular-nums text-th-text-dim text-right break-all" x-text="rec.current_ip || '—'"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.protocol')"></dt>
+                    <dd class="text-xs font-medium tabular-nums text-th-text-dim" x-text="ipVersionLabel(rec.ip_version)"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.last_sync')"></dt>
+                    <dd class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></dd>
+                  </div>
+                  <div class="flex justify-between gap-3 items-center">
+                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.active')"></dt>
+                    <dd>
+                      <span class="material-symbols-outlined text-lg align-middle"
+                            :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
+                            x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
+                    </dd>
+                  </div>
+                </dl>
+                <div x-show="$store.auth.isAdmin" class="flex flex-wrap items-center justify-end gap-1 pt-1 border-t border-th-outline/30">
                   <button type="button" x-show="rec.enabled" @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
                     <span class="material-symbols-outlined text-base">refresh</span>
                   </button>
-                  <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
+                  <button type="button" @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
                     <span class="material-symbols-outlined text-base">edit</span>
                   </button>
-                  <button @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
+                  <button type="button" @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
                     <span class="material-symbols-outlined text-base">delete</span>
                   </button>
                 </div>
-              </div>
+              </article>
             </template>
           </div>
           <div x-show="records.length === 0" class="text-center py-20 text-th-text-dim">
@@ -633,29 +677,72 @@
         </div>
 
         <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden">
-          <div class="hidden sm:grid grid-cols-[1fr_6rem_10rem_5rem] gap-4 items-center px-5 py-3">
+          <div class="ddns-layout-sm-desktop">
+            <div class="grid grid-cols-[1fr_6rem_10rem_5rem] gap-4 items-center px-5 py-3">
             <span class="label-sm" x-text="$store.i18n.t('users.username')"></span>
             <span class="label-sm" x-text="$store.i18n.t('users.role')"></span>
             <span class="label-sm" x-text="$store.i18n.t('users.created')"></span>
             <span></span>
-          </div>
-          <template x-for="user in sortedUsers" :key="user.id">
-            <div class="grid grid-cols-1 sm:grid-cols-[1fr_6rem_10rem_5rem] gap-2 sm:gap-4 items-center px-5 py-3.5 hover:bg-th-surface-low transition-colors">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-th-primary-bg text-th-primary-text flex items-center justify-center text-xs font-bold uppercase shrink-0"
-                     x-text="user.username.charAt(0)"></div>
-                <span class="text-sm font-medium truncate" x-text="user.username"></span>
-              </div>
-              <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full w-fit"
-                    :class="user.role === 'admin' ? 'bg-th-primary-bg text-th-primary' : 'bg-th-surface-high text-th-text-dim'"
-                    x-text="user.role === 'admin' ? $store.i18n.t('users.role_admin') : $store.i18n.t('users.role_viewer')"></span>
-              <span class="text-xs text-th-text-dim" x-text="new Date(user.created_at).toLocaleDateString()"></span>
-              <div class="flex items-center gap-1">
-                <button @click="openEditUser(user)" class="btn-icon"><span class="material-symbols-outlined text-base">edit</span></button>
-                <button x-show="user.id !== 1" @click="deleteUser(user.id)" class="btn-icon hover:!text-th-error"><span class="material-symbols-outlined text-base">delete</span></button>
-              </div>
             </div>
-          </template>
+          </div>
+          <div class="p-3 space-y-3 sm:p-0 sm:space-y-0">
+            <!-- Alpine: <template x-for> must have exactly ONE root node — wrap mobile + desktop -->
+            <template x-for="user in sortedUsers" :key="user.id">
+              <div>
+              <article class="ddns-layout-sm-mobile rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-full bg-th-primary-bg text-th-primary-text flex items-center justify-center text-sm font-bold uppercase shrink-0"
+                         x-text="user.username.charAt(0)"></div>
+                    <div class="min-w-0">
+                      <p class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.username')"></p>
+                      <p class="text-sm font-semibold truncate" x-text="user.username"></p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" @click="openEditUser(user)" class="btn-icon" :title="$store.i18n.t('common.edit')">
+                      <span class="material-symbols-outlined text-base">edit</span>
+                    </button>
+                    <button type="button" x-show="user.id !== 1" @click="deleteUser(user.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
+                      <span class="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </div>
+                </div>
+                <dl class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.role')"></dt>
+                    <dd class="mt-1">
+                      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                            :class="user.role === 'admin' ? 'bg-th-primary-bg text-th-primary' : 'bg-th-surface-high text-th-text-dim'"
+                            x-text="user.role === 'admin' ? $store.i18n.t('users.role_admin') : $store.i18n.t('users.role_viewer')"></span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.created')"></dt>
+                    <dd class="mt-1 text-sm text-th-text-dim" x-text="new Date(user.created_at).toLocaleDateString()"></dd>
+                  </div>
+                </dl>
+              </article>
+              <div class="ddns-layout-sm-desktop px-5 py-3.5 hover:bg-th-surface-low transition-colors">
+                <div class="grid grid-cols-[1fr_6rem_10rem_5rem] gap-4 items-center">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-th-primary-bg text-th-primary-text flex items-center justify-center text-xs font-bold uppercase shrink-0"
+                       x-text="user.username.charAt(0)"></div>
+                  <span class="text-sm font-medium truncate" x-text="user.username"></span>
+                </div>
+                <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full w-fit"
+                      :class="user.role === 'admin' ? 'bg-th-primary-bg text-th-primary' : 'bg-th-surface-high text-th-text-dim'"
+                      x-text="user.role === 'admin' ? $store.i18n.t('users.role_admin') : $store.i18n.t('users.role_viewer')"></span>
+                <span class="text-xs text-th-text-dim" x-text="new Date(user.created_at).toLocaleDateString()"></span>
+                <div class="flex items-center gap-1">
+                  <button type="button" @click="openEditUser(user)" class="btn-icon"><span class="material-symbols-outlined text-base">edit</span></button>
+                  <button type="button" x-show="user.id !== 1" @click="deleteUser(user.id)" class="btn-icon hover:!text-th-error"><span class="material-symbols-outlined text-base">delete</span></button>
+                </div>
+                </div>
+              </div>
+              </div>
+            </template>
+          </div>
           <div x-show="users.length === 0" class="text-center py-16 text-th-text-dim">
             <span class="material-symbols-outlined text-4xl opacity-20 block mb-2">group</span>
             <p class="text-sm">No users.</p>
