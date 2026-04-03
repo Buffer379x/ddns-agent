@@ -517,18 +517,20 @@
 
         <div class="space-y-8">
 
-          <!-- General + Appearance + Info -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- General | Appearance -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- General -->
             <div class="bg-th-surface rounded-xl p-6 shadow-soft space-y-5">
               <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.general')"></h3>
-              <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.language')"></label>
-                <select @change="$store.i18n.load($event.target.value)" class="select">
-                  <template x-for="lang in $store.i18n.available" :key="lang.code">
-                    <option :value="lang.code" :selected="lang.code === $store.i18n.locale" x-text="lang.name"></option>
-                  </template>
-                </select>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="min-w-0">
+                  <p class="label-sm" x-text="$store.i18n.t('settings.version')"></p>
+                  <p class="text-sm font-mono font-medium mt-0.5 truncate" x-text="$store.auth.version ? 'v' + $store.auth.version : '—'"></p>
+                </div>
+                <div class="min-w-0">
+                  <p class="label-sm" x-text="$store.i18n.t('settings.records_count')"></p>
+                  <p class="text-sm font-medium mt-0.5 tabular-nums" x-text="stats.total"></p>
+                </div>
               </div>
               <div>
                 <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.refresh_interval')"></label>
@@ -565,94 +567,27 @@
             </div>
 
             <!-- Appearance -->
-            <div class="bg-th-surface rounded-xl p-6 shadow-soft">
-              <h3 class="font-headline font-semibold mb-4" x-text="$store.i18n.t('settings.appearance')"></h3>
-              <label class="label-sm block mb-2" x-text="$store.i18n.t('settings.theme')"></label>
-              <div class="flex gap-2">
-                <template x-for="m in ['light','dark','auto']" :key="m">
-                  <button @click="$store.theme.set(m)"
-                          :class="$store.theme.mode === m ? 'btn-primary !py-2 !px-3' : 'btn-secondary !py-2 !px-3'">
-                    <span class="material-symbols-outlined text-base" x-text="m === 'light' ? 'light_mode' : m === 'dark' ? 'dark_mode' : 'auto_mode'"></span>
-                    <span x-text="$store.i18n.t('settings.theme_' + m)"></span>
-                  </button>
-                </template>
-              </div>
-            </div>
-
-            <!-- Info -->
-            <div class="bg-th-surface rounded-xl p-6 shadow-soft">
-              <h3 class="font-headline font-semibold mb-4" x-text="$store.i18n.t('settings.info')"></h3>
-              <div class="space-y-3">
-                <div>
-                  <p class="label-sm" x-text="$store.i18n.t('settings.version')"></p>
-                  <p class="text-sm font-mono font-medium mt-0.5" x-text="$store.auth.version ? 'v' + $store.auth.version : '—'"></p>
-                </div>
-                <div>
-                  <p class="label-sm" x-text="$store.i18n.t('settings.records_count')"></p>
-                  <p class="text-sm font-medium mt-0.5" x-text="stats.total"></p>
+            <div class="bg-th-surface rounded-xl p-6 shadow-soft space-y-5">
+              <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.appearance')"></h3>
+              <div>
+                <label class="label-sm block mb-2" x-text="$store.i18n.t('settings.theme')"></label>
+                <div class="flex gap-2">
+                  <template x-for="m in ['light','dark','auto']" :key="m">
+                    <button type="button" @click="$store.theme.set(m)"
+                            :class="[$store.theme.mode === m ? 'btn-primary' : 'btn-secondary', 'flex-1', 'min-w-0', 'justify-center']">
+                      <span class="material-symbols-outlined text-lg shrink-0" x-text="m === 'light' ? 'light_mode' : m === 'dark' ? 'dark_mode' : 'auto_mode'"></span>
+                      <span x-text="$store.i18n.t('settings.theme_' + m)"></span>
+                    </button>
+                  </template>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- Advanced -->
-          <div class="bg-th-surface rounded-xl p-6 shadow-soft">
-            <h3 class="font-headline font-semibold mb-1" x-text="$store.i18n.t('settings.advanced')"></h3>
-            <p class="text-xs text-th-text-dim mb-4" x-text="$store.i18n.t('settings.advanced_desc')"></p>
-            <div class="space-y-5">
               <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.cooldown_period')"></label>
-                <select x-model="settingsForm.cooldown_seconds" @change="saveSettings()" class="select">
-                  <option value="60">1 min</option>
-                  <option value="120">2 min</option>
-                  <option value="300">5 min</option>
-                  <option value="600">10 min</option>
-                  <option value="900">15 min</option>
-                  <option value="1800">30 min</option>
-                  <option value="3600">1 hour</option>
+                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.language')"></label>
+                <select @change="$store.i18n.load($event.target.value)" class="select">
+                  <template x-for="lang in $store.i18n.available" :key="lang.code">
+                    <option :value="lang.code" :selected="lang.code === $store.i18n.locale" x-text="lang.name"></option>
+                  </template>
                 </select>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.cooldown_help')"></p>
-              </div>
-              <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.http_timeout')"></label>
-                <select x-model="settingsForm.http_timeout_seconds" @change="saveSettings()" class="select">
-                  <option value="5">5 s</option>
-                  <option value="10">10 s</option>
-                  <option value="15">15 s</option>
-                  <option value="30">30 s</option>
-                  <option value="60">1 min</option>
-                  <option value="120">2 min</option>
-                  <option value="300">5 min</option>
-                </select>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.http_timeout_help')"></p>
-              </div>
-              <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.backup_retention')"></label>
-                <select x-model="settingsForm.backup_retention" @change="saveSettings()" class="select">
-                  <option value="3">3</option>
-                  <option value="5">5</option>
-                  <option value="7">7</option>
-                  <option value="14">14</option>
-                  <option value="21">21</option>
-                  <option value="30">30</option>
-                  <option value="60">60</option>
-                  <option value="90">90</option>
-                </select>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.backup_retention_help')"></p>
-              </div>
-              <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.log_archive_retention')"></label>
-                <select x-model="settingsForm.log_archive_days" @change="saveSettings()" class="select">
-                  <option value="3">3</option>
-                  <option value="7">7</option>
-                  <option value="14">14</option>
-                  <option value="30">30</option>
-                  <option value="60">60</option>
-                  <option value="90">90</option>
-                  <option value="180">180</option>
-                  <option value="365">365</option>
-                </select>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.log_archive_retention_help')"></p>
               </div>
             </div>
           </div>
@@ -689,33 +624,95 @@
             </div>
           </div>
 
-          <!-- Backup & Danger side by side -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <!-- Advanced (left) | Backup config + Danger (right, stacked) -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             <div class="bg-th-surface rounded-xl p-6 shadow-soft">
-              <h3 class="font-headline font-semibold mb-1" x-text="$store.i18n.t('settings.backup')"></h3>
-              <p class="text-xs text-th-text-dim mb-4" x-text="$store.i18n.t('settings.backup_desc')"></p>
-              <div class="flex flex-wrap gap-3">
-                <button @click="exportConfig()" class="btn-primary">
-                  <span class="material-symbols-outlined text-lg">download</span>
-                  <span x-text="$store.i18n.t('settings.export')"></span>
-                </button>
-                <input type="file" accept=".json" x-ref="importFile" class="hidden" @change="importConfigPickFile($event)">
-                <button @click="$refs.importFile.click()" class="btn-primary">
-                  <span class="material-symbols-outlined text-lg">upload</span>
-                  <span x-text="$store.i18n.t('settings.import')"></span>
-                </button>
+              <h3 class="font-headline font-semibold mb-1" x-text="$store.i18n.t('settings.advanced')"></h3>
+              <p class="text-xs text-th-text-dim mb-4" x-text="$store.i18n.t('settings.advanced_desc')"></p>
+              <div class="space-y-5">
+                <div>
+                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.cooldown_period')"></label>
+                  <select x-model="settingsForm.cooldown_seconds" @change="saveSettings()" class="select">
+                    <option value="60">1 min</option>
+                    <option value="120">2 min</option>
+                    <option value="300">5 min</option>
+                    <option value="600">10 min</option>
+                    <option value="900">15 min</option>
+                    <option value="1800">30 min</option>
+                    <option value="3600">1 hour</option>
+                  </select>
+                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.cooldown_help')"></p>
+                </div>
+                <div>
+                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.http_timeout')"></label>
+                  <select x-model="settingsForm.http_timeout_seconds" @change="saveSettings()" class="select">
+                    <option value="5">5 s</option>
+                    <option value="10">10 s</option>
+                    <option value="15">15 s</option>
+                    <option value="30">30 s</option>
+                    <option value="60">1 min</option>
+                    <option value="120">2 min</option>
+                    <option value="300">5 min</option>
+                  </select>
+                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.http_timeout_help')"></p>
+                </div>
+                <div>
+                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.backup_retention')"></label>
+                  <select x-model="settingsForm.backup_retention" @change="saveSettings()" class="select">
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                    <option value="7">7</option>
+                    <option value="14">14</option>
+                    <option value="21">21</option>
+                    <option value="30">30</option>
+                    <option value="60">60</option>
+                    <option value="90">90</option>
+                  </select>
+                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.backup_retention_help')"></p>
+                </div>
+                <div>
+                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.log_archive_retention')"></label>
+                  <select x-model="settingsForm.log_archive_days" @change="saveSettings()" class="select">
+                    <option value="3">3</option>
+                    <option value="7">7</option>
+                    <option value="14">14</option>
+                    <option value="30">30</option>
+                    <option value="60">60</option>
+                    <option value="90">90</option>
+                    <option value="180">180</option>
+                    <option value="365">365</option>
+                  </select>
+                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.log_archive_retention_help')"></p>
+                </div>
               </div>
-              <p class="text-xs text-th-text-dim mt-4 leading-relaxed" x-text="$store.i18n.t('settings.export_secrets_note')"></p>
             </div>
 
-            <div class="bg-th-surface rounded-xl p-6 shadow-soft" style="box-shadow: inset 0 0 0 1px var(--c-error-bg)">
-              <h3 class="font-headline font-semibold text-th-error" x-text="$store.i18n.t('settings.danger')"></h3>
-              <p class="text-xs text-th-text-dim mt-0.5 mb-5" x-text="$store.i18n.t('settings.danger_desc')"></p>
-              <div class="flex flex-wrap gap-3">
-                <button @click="clearLogs()" class="btn-danger">
-                  <span class="material-symbols-outlined text-base">delete_sweep</span>
-                  <span x-text="$store.i18n.t('settings.clear_logs')"></span>
-                </button>
+            <div class="space-y-8">
+              <div class="bg-th-surface rounded-xl p-6 shadow-soft">
+                <h3 class="font-headline font-semibold mb-4" x-text="$store.i18n.t('settings.backup_config')"></h3>
+                <div class="flex flex-wrap gap-3">
+                  <button @click="exportConfig()" class="btn-primary">
+                    <span class="material-symbols-outlined text-lg">download</span>
+                    <span x-text="$store.i18n.t('settings.export')"></span>
+                  </button>
+                  <input type="file" accept=".json" x-ref="importFile" class="hidden" @change="importConfigPickFile($event)">
+                  <button @click="$refs.importFile.click()" class="btn-primary">
+                    <span class="material-symbols-outlined text-lg">upload</span>
+                    <span x-text="$store.i18n.t('settings.import')"></span>
+                  </button>
+                </div>
+                <p class="text-xs text-th-text-dim mt-4 leading-relaxed" x-text="$store.i18n.t('settings.export_secrets_note')"></p>
+              </div>
+
+              <div class="bg-th-surface rounded-xl p-6 shadow-soft" style="box-shadow: inset 0 0 0 1px var(--c-error-bg)">
+                <h3 class="font-headline font-semibold text-th-error" x-text="$store.i18n.t('settings.danger')"></h3>
+                <p class="text-xs text-th-text-dim mt-0.5 mb-5" x-text="$store.i18n.t('settings.danger_desc')"></p>
+                <div class="flex flex-wrap gap-3">
+                  <button @click="clearLogs()" class="btn-danger">
+                    <span class="material-symbols-outlined text-base">delete_sweep</span>
+                    <span x-text="$store.i18n.t('settings.clear_logs')"></span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
