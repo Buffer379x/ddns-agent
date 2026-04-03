@@ -654,18 +654,20 @@ document.addEventListener('alpine:init', () => {
     async importConfig(event) {
       const file = event.target.files[0];
       if (!file) return;
-      if (!confirm(Alpine.store('i18n').t('settings.import_confirm'))) { event.target.value = ''; return; }
+      const t = Alpine.store('i18n').t.bind(Alpine.store('i18n'));
+      if (!confirm(t('settings.import_confirm'))) { event.target.value = ''; return; }
+      const recordsMode = confirm(t('settings.import_records_replace_confirm')) ? 'replace' : 'merge';
       try {
         const text = await file.text();
         const token = localStorage.getItem('ddns_token');
-        const resp = await fetch('/api/config/import', {
+        const resp = await fetch('/api/config/import?records=' + encodeURIComponent(recordsMode), {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: text,
         });
         if (!resp.ok) { const d = await resp.json(); throw new Error(d.error); }
-        Alpine.store('notify').send('success', Alpine.store('i18n').t('notify.config_imported'));
-        await this.loadRecords();
+        Alpine.store('notify').send('success', t('notify.config_imported'));
+        await Promise.all([this.loadRecords(), this.loadOverview()]);
       } catch (e) { Alpine.store('notify').send('error', e.message); }
       event.target.value = '';
     },

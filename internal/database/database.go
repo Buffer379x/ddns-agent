@@ -294,6 +294,24 @@ func (db *DB) DeleteRecord(id int) error {
 	return err
 }
 
+// DeleteAllRecords removes every hostname record (ip_history rows are removed via ON DELETE CASCADE).
+func (db *DB) DeleteAllRecords() error {
+	_, err := db.conn.Exec("DELETE FROM records")
+	return err
+}
+
+// RecordExists reports whether a record with the same provider, domain and owner already exists.
+func (db *DB) RecordExists(provider, domain, owner string) (bool, error) {
+	var n int
+	err := db.conn.QueryRow(
+		`SELECT COUNT(*) FROM records WHERE provider = ? AND domain = ? AND owner = ?`,
+		provider, domain, owner).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // RecordCounts returns: all records; enabled (toggle on); enabled+sync success; enabled+error status.
 func (db *DB) RecordCounts() (total, activeEnabled, successful, errors int, err error) {
 	err = db.conn.QueryRow("SELECT COUNT(*) FROM records").Scan(&total)

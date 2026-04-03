@@ -536,7 +536,15 @@ func (h *Handler) ImportConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "reading body: "+err.Error())
 		return
 	}
-	if err := h.backup.Import(body); err != nil {
+	recordsMode := r.URL.Query().Get("records")
+	if recordsMode == "" {
+		recordsMode = "merge"
+	}
+	if recordsMode != "merge" && recordsMode != "replace" {
+		writeError(w, http.StatusBadRequest, "query parameter records must be merge or replace")
+		return
+	}
+	if err := h.backup.Import(body, recordsMode); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

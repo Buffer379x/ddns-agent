@@ -115,7 +115,8 @@ func (s *Service) Export() ([]byte, error) {
 	return json.MarshalIndent(data, "", "  ")
 }
 
-func (s *Service) Import(data []byte) error {
+// Import applies exported JSON. recordsMode: "replace" deletes all existing hostnames first; "merge" keeps them and adds imported rows, skipping duplicates (same provider, domain, owner).
+func (s *Service) Import(data []byte, recordsMode string) error {
 	var export ExportData
 	if err := json.Unmarshal(data, &export); err != nil {
 		return fmt.Errorf("parsing import data: %w", err)
@@ -127,13 +128,37 @@ func (s *Service) Import(data []byte) error {
 		}
 	}
 
-	for _, r := range export.Records {
-		if _, err := s.db.CreateRecord(&r); err != nil {
-			return fmt.Errorf("importing record %s.%s: %w", r.Owner, r.Domain, err)
+	switch recordsMode {
+	case "replace":
+		if err := s.db.DeleteAllRecords(); err != nil {
+			return fmt.Errorf("clearing records: %w", err)
 		}
+		for _, r := range export.Records {
+			r.ID = 0
+			if _, err := s.db.CreateRecord(&r); err != nil {
+				return fmt.Errorf("importing record %s.%s: %w", r.Owner, r.Domain, err)
+			}
+		}
+	case "merge":
+		for _, r := range export.Records {
+			r.ID = 0
+			exists, err := s.db.RecordExists(r.Provider, r.Domain, r.Owner)
+			if err != nil {
+				return fmt.Errorf("checking record %s.%s: %w", r.Owner, r.Domain, err)
+			}
+			if exists {
+				continue
+			}
+			if _, err := s.db.CreateRecord(&r); err != nil {
+				return fmt.Errorf("importing record %s.%s: %w", r.Owner, r.Domain, err)
+			}
+		}
+	default:
+		return fmt.Errorf("invalid records mode %q (use merge or replace)", recordsMode)
 	}
 
 	for _, w := range export.Webhooks {
+		w.ID = 0
 		if _, err := s.db.CreateWebhook(&w); err != nil {
 			return fmt.Errorf("importing webhook %s: %w", w.Name, err)
 		}
