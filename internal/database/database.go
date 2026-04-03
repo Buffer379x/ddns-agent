@@ -294,16 +294,21 @@ func (db *DB) DeleteRecord(id int) error {
 	return err
 }
 
-func (db *DB) RecordCounts() (total, active, errors int, err error) {
+// RecordCounts returns: all records; enabled (toggle on); enabled+sync success; enabled+error status.
+func (db *DB) RecordCounts() (total, activeEnabled, successful, errors int, err error) {
 	err = db.conn.QueryRow("SELECT COUNT(*) FROM records").Scan(&total)
 	if err != nil {
 		return
 	}
-	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE status='success' AND enabled=1").Scan(&active)
+	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE enabled=1").Scan(&activeEnabled)
 	if err != nil {
 		return
 	}
-	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE status='error'").Scan(&errors)
+	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE enabled=1 AND status='success'").Scan(&successful)
+	if err != nil {
+		return
+	}
+	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE enabled=1 AND status='error'").Scan(&errors)
 	return
 }
 

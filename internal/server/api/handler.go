@@ -549,15 +549,16 @@ func (h *Handler) ImportConfig(w http.ResponseWriter, r *http.Request) {
 // --- Status ---
 
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
-	total, active, errors, err := h.db.RecordCounts()
+	total, active, successful, errors, err := h.db.RecordCounts()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"total_records":  total,
-		"active_records": active,
-		"error_records":  errors,
+		"total_records":       total,
+		"active_records":      active,
+		"successful_records":  successful,
+		"error_records":       errors,
 	})
 }
 

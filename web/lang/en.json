@@ -16,6 +16,7 @@
   "overview.subtitle": "Monitor your DNS records in real-time.",
   "overview.total_records": "Total Records",
   "overview.active": "Active",
+  "overview.successful": "Successful",
   "overview.errors": "Errors",
   "table.status": "Status",
   "table.hostname": "Hostname",

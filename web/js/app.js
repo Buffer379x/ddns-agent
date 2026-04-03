@@ -307,7 +307,7 @@ document.addEventListener('alpine:init', () => {
       return items.filter(i => !i.adminOnly || isAdmin);
     },
 
-    stats: { total: 0, active: 0, errors: 0 },
+    stats: { total: 0, active: 0, successful: 0, errors: 0 },
     records: [],
     providers: [],
     selectedProviderFields: [],
@@ -392,7 +392,14 @@ document.addEventListener('alpine:init', () => {
     async loadOverview() {
       try {
         const [status, recs] = await Promise.all([api.get('/api/status'), api.get('/api/records')]);
-        if (status) this.stats = { total: status.total_records, active: status.active_records, errors: status.error_records };
+        if (status) {
+          this.stats = {
+            total: status.total_records,
+            active: status.active_records,
+            successful: status.successful_records,
+            errors: status.error_records,
+          };
+        }
         if (recs) this.records = recs;
       } catch (_) {}
     },

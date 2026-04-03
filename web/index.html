@@ -174,8 +174,8 @@
           <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('overview.subtitle')"></p>
         </div>
 
-        <!-- Stat Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10">
+        <!-- Stat Cards: total | enabled | sync OK | errors (enabled) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
           <div class="bg-th-surface rounded-xl p-5 shadow-soft">
             <div class="flex items-center gap-4">
               <div class="w-11 h-11 rounded-lg bg-th-primary-bg flex items-center justify-center shrink-0">
@@ -189,12 +189,23 @@
           </div>
           <div class="bg-th-surface rounded-xl p-5 shadow-soft">
             <div class="flex items-center gap-4">
-              <div class="w-11 h-11 rounded-lg bg-th-success-bg flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-th-success-text">check_circle</span>
+              <div class="w-11 h-11 rounded-lg bg-th-primary-bg flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-th-primary">toggle_on</span>
               </div>
               <div>
                 <p class="text-2xl font-headline font-bold leading-none" x-text="stats.active"></p>
                 <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.active')"></p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-th-surface rounded-xl p-5 shadow-soft">
+            <div class="flex items-center gap-4">
+              <div class="w-11 h-11 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-green-500">check_circle</span>
+              </div>
+              <div>
+                <p class="text-2xl font-headline font-bold leading-none" x-text="stats.successful"></p>
+                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.successful')"></p>
               </div>
             </div>
           </div>

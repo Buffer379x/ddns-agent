@@ -16,6 +16,7 @@
   "overview.subtitle": "DNS-Einträge in Echtzeit überwachen.",
   "overview.total_records": "Einträge gesamt",
   "overview.active": "Aktiv",
+  "overview.successful": "Erfolgreich",
   "overview.errors": "Fehler",
   "table.status": "Status",
   "table.hostname": "Hostname",
