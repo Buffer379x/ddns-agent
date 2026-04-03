@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -23,6 +24,8 @@ func New(db *database.DB) *Service {
 	}
 }
 
+// Notify sends a notification for the given event to all enabled, subscribed webhooks.
+// Delivery is fire-and-forget; individual failures do not affect other webhooks.
 func (s *Service) Notify(event, message string) {
 	hooks, err := s.db.EnabledWebhooksForEvent(event)
 	if err != nil {
@@ -46,7 +49,7 @@ func (s *Service) send(hook database.Webhook, event, message string) {
 		err = s.sendGeneric(hook.URL, event, message)
 	}
 	if err != nil {
-		// silently log - avoid recursion
+		// Delivery errors are intentionally not logged to avoid recursive log→webhook loops.
 		_ = err
 	}
 }
@@ -105,7 +108,8 @@ func (s *Service) postJSON(url string, payload any) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	// Use context.Background so the goroutine is not tied to any request context.
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -121,9 +125,19 @@ func (s *Service) postJSON(url string, payload any) error {
 	return nil
 }
 
+// SendTest synchronously delivers a test notification and returns any delivery error.
 func (s *Service) SendTest(hook database.Webhook) error {
-	s.send(hook, "test", "This is a test notification from DDNS Agent")
-	return nil
+	const msg = "This is a test notification from DDNS Agent"
+	switch hook.Type {
+	case "discord":
+		return s.sendDiscord(hook.URL, "test", msg)
+	case "telegram":
+		return s.sendTelegram(hook.URL, "test", msg)
+	case "gotify":
+		return s.sendGotify(hook.URL, "test", msg)
+	default:
+		return s.sendGeneric(hook.URL, "test", msg)
+	}
 }
 
 func colorForEvent(event string) int {
@@ -133,7 +147,7 @@ func colorForEvent(event string) int {
 	case "error":
 		return 0xEF4444 // red
 	case "warning":
-		return 0xF59E0B // yellow
+		return 0xF59E0B // amber
 	default:
 		return 0x3B82F6 // blue
 	}

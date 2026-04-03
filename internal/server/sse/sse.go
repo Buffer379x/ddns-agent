@@ -10,10 +10,11 @@ import (
 	"ddns-agent/internal/logger"
 )
 
+// Broker manages Server-Sent Event subscriptions and fan-out broadcasts.
 type Broker struct {
-	mu          sync.RWMutex
-	clients     map[chan string]struct{}
-	maxClients  int
+	mu         sync.Mutex
+	clients    map[chan string]struct{}
+	maxClients int
 }
 
 func NewBroker(maxClients int) *Broker {
@@ -38,29 +39,34 @@ func (b *Broker) BroadcastNotification(level, message string) {
 
 func (b *Broker) broadcast(event, data string) {
 	msg := fmt.Sprintf("event: %s\ndata: %s\n\n", event, data)
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	for ch := range b.clients {
 		select {
 		case ch <- msg:
 		default:
-			// slow client, skip
+			// Slow client — drop message rather than block the broadcaster.
 		}
 	}
 }
 
-func (b *Broker) subscribe() (chan string, func()) {
-	ch := make(chan string, 64)
+// trySubscribe atomically checks the client limit and registers the channel.
+// Returns (nil, nil, false) when the limit is reached.
+func (b *Broker) trySubscribe() (chan string, func(), bool) {
 	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.clients) >= b.maxClients {
+		return nil, nil, false
+	}
+	ch := make(chan string, 64)
 	b.clients[ch] = struct{}{}
-	b.mu.Unlock()
-
-	return ch, func() {
+	unsub := func() {
 		b.mu.Lock()
 		delete(b.clients, ch)
 		b.mu.Unlock()
 		close(ch)
 	}
+	return ch, unsub, true
 }
 
 func (b *Broker) Handler() http.HandlerFunc {
@@ -71,23 +77,19 @@ func (b *Broker) Handler() http.HandlerFunc {
 			return
 		}
 
-		b.mu.RLock()
-		count := len(b.clients)
-		b.mu.RUnlock()
-		if count >= b.maxClients {
+		ch, unsub, ok := b.trySubscribe()
+		if !ok {
 			http.Error(w, "too many connections", http.StatusServiceUnavailable)
 			return
 		}
+		defer unsub()
 
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("X-Accel-Buffering", "no")
 
-		ch, unsub := b.subscribe()
-		defer unsub()
-
-		// send initial heartbeat
+		// Send initial heartbeat so the client knows the stream is live.
 		fmt.Fprintf(w, ": connected\n\n")
 		flusher.Flush()
 

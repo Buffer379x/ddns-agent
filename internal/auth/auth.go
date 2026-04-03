@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"ddns-agent/internal/database"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,12 +19,11 @@ type contextKey string
 const UserContextKey contextKey = "user"
 
 type Service struct {
-	db     *database.DB
 	secret []byte
 }
 
-func NewService(db *database.DB, secret string) *Service {
-	return &Service{db: db, secret: []byte(secret)}
+func NewService(secret string) *Service {
+	return &Service{secret: []byte(secret)}
 }
 
 func HashPassword(password string) (string, error) {
@@ -67,14 +66,14 @@ func (s *Service) ValidateToken(tokenStr string) (jwt.MapClaims, error) {
 
 func (s *Service) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			writeJSONError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
-		claims, err := s.ValidateToken(strings.TrimPrefix(auth, "Bearer "))
+		claims, err := s.ValidateToken(strings.TrimPrefix(authHeader, "Bearer "))
 		if err != nil {
-			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			writeJSONError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
 		ctx := context.WithValue(r.Context(), UserContextKey, claims)
@@ -87,6 +86,13 @@ func GetUserFromContext(r *http.Request) jwt.MapClaims {
 	return claims
 }
 
+// writeJSONError writes a JSON error body with the correct Content-Type header.
+func writeJSONError(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
 // --- Rate Limiter ---
 
 type RateLimiter struct {
@@ -97,27 +103,40 @@ type RateLimiter struct {
 }
 
 type visitor struct {
-	count    int
-	resetAt  time.Time
+	count   int
+	resetAt time.Time
 }
 
+// NewRateLimiter creates an in-memory fixed-window rate limiter.
+// rate is the maximum number of allowed requests per window duration.
 func NewRateLimiter(rate int, window time.Duration) *RateLimiter {
-	rl := &RateLimiter{
+	return &RateLimiter{
 		visitors: make(map[string]*visitor),
 		rate:     rate,
 		window:   window,
 	}
-	go rl.cleanup()
-	return rl
 }
 
+// Allow reports whether key is within the rate limit.
+// Expired entries are pruned lazily to avoid a background goroutine.
 func (rl *RateLimiter) Allow(key string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
+	now := time.Now()
+
 	v, exists := rl.visitors[key]
-	if !exists || time.Now().After(v.resetAt) {
-		rl.visitors[key] = &visitor{count: 1, resetAt: time.Now().Add(rl.window)}
+	if !exists || now.After(v.resetAt) {
+		// Opportunistic cleanup: remove all stale entries on a new window to
+		// bound map growth without needing a background goroutine.
+		if len(rl.visitors) > 1000 {
+			for k, vv := range rl.visitors {
+				if now.After(vv.resetAt) {
+					delete(rl.visitors, k)
+				}
+			}
+		}
+		rl.visitors[key] = &visitor{count: 1, resetAt: now.Add(rl.window)}
 		return true
 	}
 	v.count++
@@ -126,9 +145,12 @@ func (rl *RateLimiter) Allow(key string) bool {
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ip = strings.Split(fwd, ",")[0]
+		// r.RemoteAddr is already set to the real client IP by chi's RealIP
+		// middleware (which is applied before this in the router chain).
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			// Fallback: RemoteAddr may not have a port in some edge cases.
+			ip = r.RemoteAddr
 		}
 		if !rl.Allow(ip) {
 			w.Header().Set("Content-Type", "application/json")
@@ -138,18 +160,4 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func (rl *RateLimiter) cleanup() {
-	for {
-		time.Sleep(rl.window)
-		rl.mu.Lock()
-		now := time.Now()
-		for k, v := range rl.visitors {
-			if now.After(v.resetAt) {
-				delete(rl.visitors, k)
-			}
-		}
-		rl.mu.Unlock()
-	}
 }

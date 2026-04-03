@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,11 +19,19 @@ import (
 	"ddns-agent/internal/logger"
 	"ddns-agent/internal/provider"
 	"ddns-agent/internal/provider/constants"
+	apimw "ddns-agent/internal/server/middleware"
 	"ddns-agent/internal/server/sse"
 	"ddns-agent/internal/updater"
 	"ddns-agent/internal/webhook"
 	"github.com/go-chi/chi/v5"
 )
+
+// localeRe restricts locale codes to ll or ll-CC format (e.g. "en", "pt-BR").
+var localeRe = regexp.MustCompile(`^[a-z]{2}(-[A-Z]{2})?$`)
+
+// AdminOnly re-exports the middleware so router.go can register it without
+// importing the middleware package directly.
+var AdminOnly = apimw.AdminOnly
 
 type Handler struct {
 	db        *database.DB
@@ -49,31 +58,6 @@ func NewHandler(
 		backup: backupSvc, encryptor: encryptor, sse: sseBroker, log: log,
 		webFS: webFS, version: version, cfg: cfg,
 	}
-}
-
-func AdminOnly(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		claims := auth.GetUserFromContext(r)
-		if claims == nil {
-			writeError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-		role, _ := claims["role"].(string)
-		if role != "admin" {
-			writeError(w, http.StatusForbidden, "admin access required")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func requestIsAdmin(r *http.Request) bool {
-	claims := auth.GetUserFromContext(r)
-	if claims == nil {
-		return false
-	}
-	role, _ := claims["role"].(string)
-	return role == "admin"
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -168,7 +152,8 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 
 // --- Records ---
 
-// decryptProviderConfig returns plaintext JSON for the API client. If decryption fails, s is returned as-is (legacy plaintext rows).
+// decryptProviderConfig returns plaintext JSON for the API client.
+// If decryption fails, s is returned as-is (legacy plaintext rows).
 func (h *Handler) decryptProviderConfig(s string) string {
 	if s == "" || h.encryptor == nil {
 		return s
@@ -189,9 +174,10 @@ func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request) {
 	if records == nil {
 		records = []database.Record{}
 	}
-	// Decrypt provider_config only for admins (editing). Viewers keep ciphertext in API responses.
+	// Decrypt provider_config for admins only (needed for editing).
+	// Non-admin viewers receive the ciphertext blob.
 	for i := range records {
-		if requestIsAdmin(r) {
+		if apimw.RequestIsAdmin(r) {
 			records[i].ProviderConfig = h.decryptProviderConfig(records[i].ProviderConfig)
 		}
 	}
@@ -276,14 +262,9 @@ func (h *Handler) RefreshRecord(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RefreshAll(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("updater", "manual refresh of all active records initiated")
-	go func() {
-		errs := h.updater.ForceUpdate()
-		if len(errs) > 0 {
-			h.log.Warn("updater", "refresh completed with %d error(s)", len(errs))
-		} else {
-			h.log.Success("updater", "refresh of all active records completed")
-		}
-	}()
+	if !h.updater.TriggerUpdate() {
+		h.log.Warn("updater", "update already pending, skipping duplicate trigger")
+	}
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "refresh initiated"})
 }
 
@@ -455,7 +436,11 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	if req.Role == "" {
 		req.Role = "viewer"
 	}
-	hash, _ := auth.HashPassword(req.Password)
+	hash, err := auth.HashPassword(req.Password)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "hashing password")
+		return
+	}
 	user, err := h.db.CreateUser(req.Username, hash, req.Role)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -477,7 +462,12 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	var hash string
 	if req.Password != "" {
-		hash, _ = auth.HashPassword(req.Password)
+		var err error
+		hash, err = auth.HashPassword(req.Password)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "hashing password")
+			return
+		}
 	}
 	if err := h.db.UpdateUser(id, req.Username, hash, req.Role); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -571,7 +561,7 @@ func (h *Handler) TestWebhook(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "test sent"})
 }
 
-// --- Config Export/Import ---
+// --- Config Export / Import ---
 
 func (h *Handler) ExportConfig(w http.ResponseWriter, r *http.Request) {
 	data, err := h.backup.Export()
@@ -612,28 +602,29 @@ func (h *Handler) ImportConfig(w http.ResponseWriter, r *http.Request) {
 // --- Status ---
 
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
-	total, active, successful, errors, err := h.db.RecordCounts()
+	total, active, successful, errs, err := h.db.RecordCounts()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"total_records":       total,
-		"active_records":      active,
-		"successful_records":  successful,
-		"error_records":       errors,
+		"total_records":      total,
+		"active_records":     active,
+		"successful_records": successful,
+		"error_records":      errs,
 	})
 }
 
 // --- SSE ---
 
+// SSEEvents streams live log and notification events to the client.
+// Authentication is required: the token must be provided as a query parameter
+// because EventSource does not support custom headers.
 func (h *Handler) SSEEvents(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
-	if token != "" {
-		if _, err := h.auth.ValidateToken(token); err != nil {
-			writeError(w, http.StatusUnauthorized, "invalid token")
-			return
-		}
+	if _, err := h.auth.ValidateToken(token); err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid token")
+		return
 	}
 	h.sse.Handler()(w, r)
 }
@@ -665,9 +656,11 @@ func (h *Handler) ListLanguages(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetLanguage(w http.ResponseWriter, r *http.Request) {
 	locale := chi.URLParam(r, "locale")
-	locale = strings.ReplaceAll(locale, "/", "")
-	locale = strings.ReplaceAll(locale, "..", "")
-
+	// Validate locale strictly to prevent path traversal or unexpected file access.
+	if !localeRe.MatchString(locale) {
+		writeError(w, http.StatusBadRequest, "invalid locale")
+		return
+	}
 	data, err := fs.ReadFile(h.webFS, "lang/"+locale+".json")
 	if err != nil {
 		writeError(w, http.StatusNotFound, "language not found")

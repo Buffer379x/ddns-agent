@@ -46,12 +46,12 @@ func (s *Service) SetRetention(n int) {
 	s.retention.Store(int32(n))
 }
 
-// StartAutoBackup runs a daily backup in a goroutine
+// StartAutoBackup runs a daily backup goroutine that exits when stop is closed.
 func (s *Service) StartAutoBackup(stop <-chan struct{}) {
 	go func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
-		// run once on start
+		// Run once immediately on start.
 		s.RunBackup()
 		for {
 			select {
@@ -72,8 +72,7 @@ func (s *Service) RunBackup() error {
 	filename := fmt.Sprintf("ddns-agent-%s.db", time.Now().Format("2006-01-02_150405"))
 	dest := filepath.Join(s.backupDir, filename)
 
-	_, err := s.db.Conn().Exec(fmt.Sprintf("VACUUM INTO '%s'", dest))
-	if err != nil {
+	if err := s.db.Vacuum(dest); err != nil {
 		return fmt.Errorf("vacuum into: %w", err)
 	}
 
@@ -99,15 +98,15 @@ func (s *Service) cleanOld() error {
 	return nil
 }
 
-// --- Config Export/Import ---
+// --- Config Export / Import ---
 
 type ExportData struct {
-	Version  string                `json:"version"`
-	ExportedAt string             `json:"exported_at"`
-	Settings map[string]string     `json:"settings"`
-	Records  []database.Record     `json:"records"`
-	Webhooks []database.Webhook    `json:"webhooks"`
-	Users    []database.User       `json:"users"`
+	Version    string              `json:"version"`
+	ExportedAt string              `json:"exported_at"`
+	Settings   map[string]string   `json:"settings"`
+	Records    []database.Record   `json:"records"`
+	Webhooks   []database.Webhook  `json:"webhooks"`
+	Users      []database.User     `json:"users"`
 }
 
 func (s *Service) Export() ([]byte, error) {
@@ -139,7 +138,11 @@ func (s *Service) Export() ([]byte, error) {
 	return json.MarshalIndent(data, "", "  ")
 }
 
-// Import applies exported JSON. recordsMode: "replace" deletes all existing hostnames first; "merge" keeps them and adds imported rows, skipping duplicates (same provider, domain, owner).
+// Import applies exported JSON. recordsMode controls record handling:
+//   - "replace" deletes all existing records first, then inserts;
+//   - "merge"   skips records that already exist (same provider, domain, owner).
+//
+// Webhooks are always merged: existing entries (same name+type+url) are skipped.
 func (s *Service) Import(data []byte, recordsMode string) error {
 	var export ExportData
 	if err := json.Unmarshal(data, &export); err != nil {
@@ -181,8 +184,16 @@ func (s *Service) Import(data []byte, recordsMode string) error {
 		return fmt.Errorf("invalid records mode %q (use merge or replace)", recordsMode)
 	}
 
+	// Webhooks are always merged — skip duplicates by name+type+url.
 	for _, w := range export.Webhooks {
 		w.ID = 0
+		exists, err := s.db.WebhookExists(w.Name, w.Type, w.URL)
+		if err != nil {
+			return fmt.Errorf("checking webhook %s: %w", w.Name, err)
+		}
+		if exists {
+			continue
+		}
 		if _, err := s.db.CreateWebhook(&w); err != nil {
 			return fmt.Errorf("importing webhook %s: %w", w.Name, err)
 		}

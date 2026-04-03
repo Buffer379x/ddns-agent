@@ -24,6 +24,7 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
+	// Single writer; WAL mode handles concurrent readers without a pool.
 	conn.SetMaxOpenConns(1)
 	conn.SetMaxIdleConns(1)
 
@@ -36,9 +37,19 @@ func New(dbPath string) (*DB, error) {
 }
 
 func (db *DB) Close() error { return db.conn.Close() }
-func (db *DB) Conn() *sql.DB { return db.conn }
+func (db *DB) Ping() error  { return db.conn.Ping() }
 
-func (db *DB) Ping() error { return db.conn.Ping() }
+// Vacuum creates a compacted copy of the database at dest using SQLite's
+// VACUUM INTO statement. dest must not contain a single-quote character.
+func (db *DB) Vacuum(dest string) error {
+	for _, c := range dest {
+		if c == '\'' {
+			return fmt.Errorf("vacuum: destination path must not contain single quotes")
+		}
+	}
+	_, err := db.conn.Exec("VACUUM INTO '" + dest + "'")
+	return err
+}
 
 func (db *DB) migrate() error {
 	_, err := db.conn.Exec(schema)
@@ -312,21 +323,16 @@ func (db *DB) RecordExists(provider, domain, owner string) (bool, error) {
 	return n > 0, nil
 }
 
-// RecordCounts returns: all records; enabled (toggle on); enabled+sync success; enabled+error status.
+// RecordCounts returns aggregate counts in a single round-trip using
+// SQLite's conditional aggregation (FILTER clause, supported since 3.23).
 func (db *DB) RecordCounts() (total, activeEnabled, successful, errors int, err error) {
-	err = db.conn.QueryRow("SELECT COUNT(*) FROM records").Scan(&total)
-	if err != nil {
-		return
-	}
-	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE enabled=1").Scan(&activeEnabled)
-	if err != nil {
-		return
-	}
-	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE enabled=1 AND status='success'").Scan(&successful)
-	if err != nil {
-		return
-	}
-	err = db.conn.QueryRow("SELECT COUNT(*) FROM records WHERE enabled=1 AND status='error'").Scan(&errors)
+	err = db.conn.QueryRow(`
+		SELECT
+		  COUNT(*),
+		  COUNT(*) FILTER (WHERE enabled = 1),
+		  COUNT(*) FILTER (WHERE enabled = 1 AND status = 'success'),
+		  COUNT(*) FILTER (WHERE enabled = 1 AND status = 'error')
+		FROM records`).Scan(&total, &activeEnabled, &successful, &errors)
 	return
 }
 
@@ -527,4 +533,16 @@ func (db *DB) EnabledWebhooksForEvent(event string) ([]Webhook, error) {
 		hooks = append(hooks, w)
 	}
 	return hooks, rows.Err()
+}
+
+// WebhookExists reports whether a webhook with the same name, type and URL already exists.
+func (db *DB) WebhookExists(name, webhookType, url string) (bool, error) {
+	var n int
+	err := db.conn.QueryRow(
+		`SELECT COUNT(*) FROM webhooks WHERE name = ? AND type = ? AND url = ?`,
+		name, webhookType, url).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }

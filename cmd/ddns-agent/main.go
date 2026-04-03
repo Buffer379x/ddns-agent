@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	_ "time/tzdata" // IANA zones embedded; required for time.LoadLocation in scratch Docker (no system zoneinfo)
+	_ "time/tzdata" // embed IANA time zones; required in scratch Docker images
 
 	"ddns-agent/internal/auth"
 	"ddns-agent/internal/backup"
@@ -27,13 +27,18 @@ import (
 	"ddns-agent/web"
 )
 
-// version is set at link time from the VERSION file (see Dockerfile).
+// version is injected at link time from the VERSION file (see Dockerfile).
 var version = "dev"
 
 func main() {
+	// Built-in health-check subcommand used by Docker HEALTHCHECK.
 	if len(os.Args) > 1 && os.Args[1] == "--health" {
 		resp, err := http.Get("http://localhost:8080/health")
-		if err != nil || resp.StatusCode != 200 {
+		if err != nil {
+			os.Exit(1)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -125,7 +130,7 @@ func main() {
 		log.Warn("main", "no JWT secret configured, generated ephemeral key (sessions lost on restart)")
 	}
 
-	authSvc := auth.NewService(db, jwtSecret)
+	authSvc := auth.NewService(jwtSecret)
 	ipFetcher := ipcheck.New(httpTimeout)
 	sseBroker := sse.NewBroker(100)
 	webhookSvc := webhook.New(db)
@@ -176,7 +181,8 @@ func main() {
 	log.Info("main", "goodbye")
 }
 
-// Setting app_timezone (IANA) overrides DDNS_TIMEZONE / TZ for log timestamps and rotation.
+// appTimeLocation resolves the effective log timezone. The DB setting
+// "app_timezone" takes precedence over DDNS_TIMEZONE / TZ env vars.
 func appTimeLocation(cfg *config.Config, db *database.DB) *time.Location {
 	if s, err := db.GetSetting("app_timezone"); err == nil {
 		if t := strings.TrimSpace(s); t != "" {
@@ -188,18 +194,33 @@ func appTimeLocation(cfg *config.Config, db *database.DB) *time.Location {
 	return cfg.TimeLocation()
 }
 
+// ensureDefaultAdmin creates the initial admin account when no users exist.
+// The application exits on any error to prevent starting with a broken auth state.
 func ensureDefaultAdmin(db *database.DB, log *logger.Logger) {
-	count, _ := db.UserCount()
+	count, err := db.UserCount()
+	if err != nil {
+		log.Error("main", "checking user count: %v", err)
+		os.Exit(1)
+	}
 	if count > 0 {
 		return
 	}
-	hash, _ := auth.HashPassword("admin")
-	db.CreateUser("admin", hash, "admin")
+	hash, err := auth.HashPassword("admin")
+	if err != nil {
+		log.Error("main", "hashing default admin password: %v", err)
+		os.Exit(1)
+	}
+	if _, err := db.CreateUser("admin", hash, "admin"); err != nil {
+		log.Error("main", "creating default admin user: %v", err)
+		os.Exit(1)
+	}
 	log.Info("main", "default admin user created (username: admin, password: admin)")
 }
 
+// initDefaults seeds the settings table with sensible values on first install
+// and migrates the legacy "update_interval" Go-duration string to "refresh_interval" seconds.
 func initDefaults(db *database.DB) {
-	// Legacy: Go duration in update_interval → refresh_interval (seconds) for the web UI
+	// Legacy migration: Go duration string → integer seconds used by the web UI.
 	if _, err := db.GetSetting("refresh_interval"); err != nil {
 		if legacy, err2 := db.GetSetting("update_interval"); err2 == nil && strings.TrimSpace(legacy) != "" {
 			if d, err3 := time.ParseDuration(strings.TrimSpace(legacy)); err3 == nil {
@@ -208,19 +229,19 @@ func initDefaults(db *database.DB) {
 		}
 	}
 
-	// First install: sensible defaults (intervals, HTTP timeout, backup file count)
-	defaults := map[string]string{
-		"refresh_interval":     "300",
-		"cooldown_seconds":     "300",
-		"http_timeout_seconds": "10",
-		"backup_retention":     "7",
-		"log_archive_days":     "7",
-		"theme":                "auto",
-		"language":             "en",
+	// Ordered slice ensures deterministic initialization and makes intent clear.
+	defaults := []struct{ key, value string }{
+		{"refresh_interval", "300"},
+		{"cooldown_seconds", "300"},
+		{"http_timeout_seconds", "10"},
+		{"backup_retention", "7"},
+		{"log_archive_days", "7"},
+		{"theme", "auto"},
+		{"language", "en"},
 	}
-	for k, v := range defaults {
-		if _, err := db.GetSetting(k); err != nil {
-			db.SetSetting(k, v)
+	for _, d := range defaults {
+		if _, err := db.GetSetting(d.key); err != nil {
+			db.SetSetting(d.key, d.value)
 		}
 	}
 }

@@ -13,11 +13,12 @@ import (
 	"time"
 )
 
+// Fetcher retrieves the machine's public IP address from well-known external services
+// using a round-robin strategy with per-attempt retry backoff.
 type Fetcher struct {
-	mu        sync.RWMutex
-	client    *http.Client
-	providers []provider
-	index     atomic.Uint64
+	mu     sync.RWMutex
+	client *http.Client
+	index  atomic.Uint64
 }
 
 type provider struct {
@@ -39,6 +40,8 @@ var ipv6Providers = []provider{
 	{name: "ifconfig6", url: "https://ifconfig.co/ip"},
 }
 
+// dialTimeoutForHTTP returns a dial timeout that is at most 5 seconds, capped
+// below the overall HTTP timeout so a slow DNS lookup doesn't consume the budget.
 func dialTimeoutForHTTP(d time.Duration) time.Duration {
 	if d < 5*time.Second {
 		return d
@@ -54,11 +57,10 @@ func New(timeout time.Duration) *Fetcher {
 				DialContext: (&net.Dialer{Timeout: dialTimeoutForHTTP(timeout)}).DialContext,
 			},
 		},
-		providers: defaultProviders,
 	}
 }
 
-// SetHTTPTimeout replaces the HTTP client used for public IP lookups (hot-reload from settings).
+// SetHTTPTimeout hot-reloads the HTTP client timeout (called from settings update).
 func (f *Fetcher) SetHTTPTimeout(d time.Duration) {
 	if d < time.Second {
 		d = time.Second
@@ -71,10 +73,6 @@ func (f *Fetcher) SetHTTPTimeout(d time.Duration) {
 			DialContext: (&net.Dialer{Timeout: dialTimeoutForHTTP(d)}).DialContext,
 		},
 	}
-}
-
-func (f *Fetcher) IP(ctx context.Context) (netip.Addr, error) {
-	return f.fetchWithRetry(ctx, f.providers, 3)
 }
 
 func (f *Fetcher) IPv4(ctx context.Context) (netip.Addr, error) {
@@ -116,6 +114,7 @@ func (f *Fetcher) fetchFrom(ctx context.Context, url string) (netip.Addr, error)
 	f.mu.RLock()
 	client := f.client
 	f.mu.RUnlock()
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return netip.Addr{}, err

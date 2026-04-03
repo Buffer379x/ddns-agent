@@ -34,6 +34,9 @@ func NewRouter(
 ) http.Handler {
 	r := chi.NewRouter()
 
+	// RealIP must only be trusted when a reverse proxy is in front of the
+	// application. For direct-bind deployments it is a no-op because
+	// X-Forwarded-For will not be present.
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(5))
@@ -44,23 +47,24 @@ func NewRouter(
 	loginLimiter := auth.NewRateLimiter(5, time.Minute)
 	apiLimiter := auth.NewRateLimiter(60, time.Minute)
 
-	// Public routes
+	// Public routes — no auth required.
 	r.Get("/health", h.HealthCheck)
 	r.Get("/api/version", h.Version)
 	r.Get("/api/lang", h.ListLanguages)
 	r.Get("/api/lang/{locale}", h.GetLanguage)
 
-	// Auth routes (rate-limited)
+	// Auth routes — rate-limited to slow down brute force.
 	r.Group(func(r chi.Router) {
 		r.Use(loginLimiter.Middleware)
 		r.Post("/api/auth/login", h.Login)
 		r.Post("/api/auth/setup", h.Setup)
 	})
 
-	// SSE (needs auth token as query param)
+	// SSE stream — auth validated inside the handler via token query param
+	// because EventSource does not support custom request headers.
 	r.Get("/api/events", h.SSEEvents)
 
-	// Protected API routes (all authenticated users)
+	// Protected API routes — all authenticated users.
 	r.Group(func(r chi.Router) {
 		r.Use(authSvc.AuthMiddleware)
 		r.Use(apiLimiter.Middleware)
@@ -74,7 +78,7 @@ func NewRouter(
 		r.Get("/api/settings", h.GetSettings)
 	})
 
-	// Admin-only API routes
+	// Admin-only API routes.
 	r.Group(func(r chi.Router) {
 		r.Use(authSvc.AuthMiddleware)
 		r.Use(apiLimiter.Middleware)
@@ -105,7 +109,7 @@ func NewRouter(
 		r.Post("/api/config/import", h.ImportConfig)
 	})
 
-	// Serve frontend with SPA fallback
+	// Serve embedded frontend with SPA fallback for client-side routing.
 	fileServer := http.FileServer(http.FS(webFS))
 	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path[1:]
@@ -116,7 +120,7 @@ func NewRouter(
 			fileServer.ServeHTTP(w, r)
 			return
 		}
-		// SPA fallback: serve index.html
+		// Fall back to index.html for unknown paths (SPA client routing).
 		data, err := fs.ReadFile(webFS, "index.html")
 		if err != nil {
 			http.NotFound(w, r)
