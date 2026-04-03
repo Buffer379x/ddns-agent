@@ -325,6 +325,8 @@ document.addEventListener('alpine:init', () => {
 
     settingsForm: { refresh_interval: '300', app_timezone: '' },
     webhooks: [],
+    showImportModal: false,
+    pendingImportBody: null,
     showWebhookModal: false,
     editingWebhook: null,
     webhookForm: { name: '', type: 'discord', url: '', events: 'ip_change,error', enabled: true },
@@ -651,25 +653,49 @@ document.addEventListener('alpine:init', () => {
       } catch (e) { Alpine.store('notify').send('error', e.message); }
     },
 
-    async importConfig(event) {
+    async importConfigPickFile(event) {
       const file = event.target.files[0];
+      event.target.value = '';
       if (!file) return;
-      const t = Alpine.store('i18n').t.bind(Alpine.store('i18n'));
-      if (!confirm(t('settings.import_confirm'))) { event.target.value = ''; return; }
-      const recordsMode = confirm(t('settings.import_records_replace_confirm')) ? 'replace' : 'merge';
       try {
-        const text = await file.text();
+        this.pendingImportBody = await file.text();
+        this.showImportModal = true;
+      } catch (e) {
+        Alpine.store('notify').send('error', e.message);
+      }
+    },
+
+    cancelImportModal() {
+      this.showImportModal = false;
+      this.pendingImportBody = null;
+    },
+
+    async executeConfigImport(recordsMode) {
+      if (!this.pendingImportBody) return;
+      const t = Alpine.store('i18n').t.bind(Alpine.store('i18n'));
+      try {
         const token = localStorage.getItem('ddns_token');
         const resp = await fetch('/api/config/import?records=' + encodeURIComponent(recordsMode), {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: text,
+          body: this.pendingImportBody,
         });
-        if (!resp.ok) { const d = await resp.json(); throw new Error(d.error); }
+        if (!resp.ok) {
+          const d = await resp.json().catch(() => ({}));
+          throw new Error(d.error || 'Import failed');
+        }
         Alpine.store('notify').send('success', t('notify.config_imported'));
-        await Promise.all([this.loadRecords(), this.loadOverview()]);
-      } catch (e) { Alpine.store('notify').send('error', e.message); }
-      event.target.value = '';
+        await Promise.all([
+          this.loadRecords(),
+          this.loadOverview(),
+          this.loadSettings(),
+          this.loadWebhooks(),
+        ]);
+        this.showImportModal = false;
+        this.pendingImportBody = null;
+      } catch (e) {
+        Alpine.store('notify').send('error', e.message);
+      }
     },
 
     async loadUsers() {
