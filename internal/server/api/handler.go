@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"ddns-agent/internal/auth"
 	"ddns-agent/internal/backup"
+	"ddns-agent/internal/config"
 	"ddns-agent/internal/crypto"
 	"ddns-agent/internal/database"
 	"ddns-agent/internal/logger"
@@ -32,18 +34,19 @@ type Handler struct {
 	log       *logger.Logger
 	webFS     fs.FS
 	version   string
+	cfg       *config.Config
 }
 
 func NewHandler(
 	db *database.DB, authSvc *auth.Service, updaterSvc *updater.Service,
 	webhookSvc *webhook.Service, backupSvc *backup.Service,
 	encryptor *crypto.Encryptor, sseBroker *sse.Broker, log *logger.Logger,
-	webFS fs.FS, version string,
+	webFS fs.FS, version string, cfg *config.Config,
 ) *Handler {
 	return &Handler{
 		db: db, auth: authSvc, updater: updaterSvc, webhooks: webhookSvc,
 		backup: backupSvc, encryptor: encryptor, sse: sseBroker, log: log,
-		webFS: webFS, version: version,
+		webFS: webFS, version: version, cfg: cfg,
 	}
 }
 
@@ -310,7 +313,30 @@ func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if _, ok := settings["app_timezone"]; ok {
+		h.syncAppTimezone(settings["app_timezone"])
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func (h *Handler) syncAppTimezone(value string) {
+	if h.cfg == nil {
+		return
+	}
+	value = strings.TrimSpace(value)
+	var loc *time.Location
+	if value == "" {
+		loc = h.cfg.TimeLocation()
+	} else {
+		var err error
+		loc, err = time.LoadLocation(value)
+		if err != nil {
+			h.log.Warn("api", "invalid app_timezone %q: %v", value, err)
+			return
+		}
+	}
+	h.log.SetTimeLocation(loc)
+	h.log.SetFileLogLocation(loc)
 }
 
 // --- Users ---
@@ -479,6 +505,9 @@ func (h *Handler) ImportConfig(w http.ResponseWriter, r *http.Request) {
 	if err := h.backup.Import(body); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	if s, err := h.db.GetSetting("app_timezone"); err == nil {
+		h.syncAppTimezone(s)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "imported"})
 }

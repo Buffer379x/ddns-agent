@@ -37,6 +37,7 @@ type Logger struct {
 	store   LogStore
 	sse     SSEBroadcaster
 	fileLog *FileRotatingWriter
+	loc     *time.Location // nil → time.Local
 	mu      sync.RWMutex
 }
 
@@ -49,11 +50,37 @@ func New() *Logger {
 func (l *Logger) SetStore(store LogStore)   { l.mu.Lock(); l.store = store; l.mu.Unlock() }
 func (l *Logger) SetSSE(sse SSEBroadcaster) { l.mu.Lock(); l.sse = sse; l.mu.Unlock() }
 
-// SetFileLog enables daily-rotated file logging under logDir (e.g. /data/logs/agent.log).
-func (l *Logger) SetFileLog(logDir string, retentionDays int) {
+// SetTimeLocation sets the timezone for log lines and CreatedAt on entries. Nil uses time.Local.
+func (l *Logger) SetTimeLocation(loc *time.Location) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.fileLog = NewFileRotatingWriter(logDir, retentionDays)
+	l.loc = loc
+}
+
+func (l *Logger) now() time.Time {
+	l.mu.RLock()
+	loc := l.loc
+	l.mu.RUnlock()
+	if loc != nil {
+		return time.Now().In(loc)
+	}
+	return time.Now().In(time.Local)
+}
+
+// SetFileLog enables daily-rotated file logging under logDir (e.g. /data/logs/agent.log).
+func (l *Logger) SetFileLog(logDir string, retentionDays int, tz *time.Location) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.fileLog = NewFileRotatingWriter(logDir, retentionDays, tz)
+}
+
+// SetFileLogLocation updates the rotating writer's calendar (e.g. after Settings change).
+func (l *Logger) SetFileLogLocation(loc *time.Location) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.fileLog != nil {
+		l.fileLog.SetLocation(loc)
+	}
 }
 
 // CloseFileLog closes the rotating file handle (e.g. on shutdown).
@@ -73,7 +100,7 @@ func (l *Logger) log(level Level, source, message string) {
 		Level:     level,
 		Source:    source,
 		Message:   message,
-		CreatedAt: time.Now(),
+		CreatedAt: l.now(),
 	}
 
 	switch level {
@@ -93,7 +120,9 @@ func (l *Logger) log(level Level, source, message string) {
 
 	if fileLog != nil {
 		line := fmt.Sprintf("%s %-7s [%s] %s\n", entry.CreatedAt.Format("2006-01-02 15:04:05"), level, source, message)
-		_ = fileLog.WriteLine(line)
+		if err := fileLog.WriteLine(line); err != nil {
+			fmt.Fprintf(os.Stderr, "ddns-agent: writing log file: %v\n", err)
+		}
 	}
 
 	if store != nil {

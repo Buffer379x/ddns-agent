@@ -445,6 +445,25 @@
                 </select>
                 <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.refresh_help')"></p>
               </div>
+              <div>
+                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.app_timezone')"></label>
+                <input type="text" class="input" list="app-timezone-list"
+                       x-model="settingsForm.app_timezone"
+                       @change="saveSettings()"
+                       :placeholder="$store.i18n.t('settings.app_timezone_placeholder')">
+                <datalist id="app-timezone-list">
+                  <option value="UTC"></option>
+                  <option value="Europe/Berlin"></option>
+                  <option value="Europe/London"></option>
+                  <option value="Europe/Paris"></option>
+                  <option value="Europe/Zurich"></option>
+                  <option value="America/New_York"></option>
+                  <option value="America/Los_Angeles"></option>
+                  <option value="Asia/Tokyo"></option>
+                  <option value="Australia/Sydney"></option>
+                </datalist>
+                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.app_timezone_help')"></p>
+              </div>
             </div>
 
             <!-- Appearance -->

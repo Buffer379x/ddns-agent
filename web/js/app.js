@@ -313,7 +313,7 @@ document.addEventListener('alpine:init', () => {
     logSearch: '',
     _sse: null,
 
-    settingsForm: { refresh_interval: '300' },
+    settingsForm: { refresh_interval: '300', app_timezone: '' },
     webhooks: [],
     showWebhookModal: false,
     editingWebhook: null,
@@ -533,7 +533,12 @@ document.addEventListener('alpine:init', () => {
     async loadSettings() {
       try {
         const d = await api.get('/api/settings');
-        if (d) this.settingsForm = { refresh_interval: d.refresh_interval || '300' };
+        if (d) {
+          this.settingsForm = {
+            refresh_interval: d.refresh_interval || '300',
+            app_timezone: d.app_timezone || '',
+          };
+        }
       } catch (_) {}
     },
 

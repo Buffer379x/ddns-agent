@@ -9,13 +9,27 @@ import (
 	"time"
 )
 
-// FileRotatingWriter appends to agent.log under logDir. When the local calendar day
+// renameLog moves src to dst; if rename fails (e.g. dst exists on some FS), remove dst and retry once.
+func renameLog(src, dst string) error {
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+	if os.IsNotExist(err) {
+		return err
+	}
+	_ = os.Remove(dst)
+	return os.Rename(src, dst)
+}
+
+// FileRotatingWriter appends to agent.log under logDir. When the calendar day in loc
 // changes, the current file is renamed to agent-YYYY-MM-DD.log and a new agent.log is started.
 // Archived agent-*.log files older than retentionDays are removed.
 type FileRotatingWriter struct {
 	dir         string
 	activePath  string
 	retention   int
+	loc         *time.Location
 	mu          sync.Mutex
 	f           *os.File
 	currentDay  string
@@ -23,14 +37,19 @@ type FileRotatingWriter struct {
 }
 
 // NewFileRotatingWriter creates a writer; the first WriteLine creates/opens files.
-func NewFileRotatingWriter(logDir string, retentionDays int) *FileRotatingWriter {
+// tz is used for “today” and archive filenames; nil uses time.Local.
+func NewFileRotatingWriter(logDir string, retentionDays int, tz *time.Location) *FileRotatingWriter {
 	if retentionDays < 1 {
 		retentionDays = 7
 	}
+	if tz == nil {
+		tz = time.Local
+	}
 	return &FileRotatingWriter{
-		dir:       logDir,
+		dir:        logDir,
 		activePath: filepath.Join(logDir, "agent.log"),
-		retention: retentionDays,
+		retention:  retentionDays,
+		loc:        tz,
 	}
 }
 
@@ -39,7 +58,7 @@ func (w *FileRotatingWriter) WriteLine(line string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	today := time.Now().Local().Format("2006-01-02")
+	today := time.Now().In(w.loc).Format("2006-01-02")
 
 	if !w.initialized {
 		if err := w.bootstrap(today); err != nil {
@@ -68,10 +87,10 @@ func (w *FileRotatingWriter) bootstrap(today string) error {
 
 	st, err := os.Stat(w.activePath)
 	if err == nil {
-		fileDay := st.ModTime().Local().Format("2006-01-02")
+		fileDay := st.ModTime().In(w.loc).Format("2006-01-02")
 		if fileDay != today {
 			archive := filepath.Join(w.dir, fmt.Sprintf("agent-%s.log", fileDay))
-			if err := os.Rename(w.activePath, archive); err != nil {
+			if err := renameLog(w.activePath, archive); err != nil {
 				return err
 			}
 		}
@@ -87,8 +106,13 @@ func (w *FileRotatingWriter) rotateForNewDay(today string) error {
 		_ = w.f.Close()
 		w.f = nil
 	}
+	if _, err := os.Stat(w.activePath); os.IsNotExist(err) {
+		w.currentDay = today
+		w.pruneArchives()
+		return w.openAppend()
+	}
 	archive := filepath.Join(w.dir, fmt.Sprintf("agent-%s.log", w.currentDay))
-	if err := os.Rename(w.activePath, archive); err != nil && !os.IsNotExist(err) {
+	if err := renameLog(w.activePath, archive); err != nil {
 		return err
 	}
 	w.currentDay = today
@@ -106,7 +130,8 @@ func (w *FileRotatingWriter) openAppend() error {
 }
 
 func (w *FileRotatingWriter) pruneArchives() {
-	cutoff := time.Now().Local().Truncate(24 * time.Hour).AddDate(0, 0, -w.retention)
+	now := time.Now().In(w.loc)
+	cutoff := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, w.loc).AddDate(0, 0, -w.retention)
 	entries, err := os.ReadDir(w.dir)
 	if err != nil {
 		return
@@ -121,7 +146,7 @@ func (w *FileRotatingWriter) pruneArchives() {
 		}
 		mid := strings.TrimPrefix(name, "agent-")
 		mid = strings.TrimSuffix(mid, ".log")
-		t, err := time.ParseInLocation("2006-01-02", mid, time.Local)
+		t, err := time.ParseInLocation("2006-01-02", mid, w.loc)
 		if err != nil {
 			continue
 		}
@@ -129,6 +154,16 @@ func (w *FileRotatingWriter) pruneArchives() {
 			_ = os.Remove(filepath.Join(w.dir, name))
 		}
 	}
+}
+
+// SetLocation updates the timezone used for day boundaries and archive names.
+func (w *FileRotatingWriter) SetLocation(loc *time.Location) {
+	if loc == nil {
+		loc = time.Local
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.loc = loc
 }
 
 // Close releases the open log file.

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type Config struct {
 	EncryptionKey   string
 	BackupRetention int
 	LogRetention    int // days of archived agent-YYYY-MM-DD.log files to keep under logs/
+	Timezone        string
 }
 
 func Load() *Config {
@@ -29,7 +31,24 @@ func Load() *Config {
 		EncryptionKey:   os.Getenv("DDNS_ENCRYPTION_KEY"),
 		BackupRetention: envOrDefaultInt("DDNS_BACKUP_RETENTION", 7),
 		LogRetention:    envOrDefaultInt("DDNS_LOG_RETENTION", 7),
+		Timezone:        strings.TrimSpace(os.Getenv("DDNS_TIMEZONE")),
 	}
+}
+
+// TimeLocation resolves DDNS_TIMEZONE, then TZ env, then Go's default (often UTC in containers).
+func (c *Config) TimeLocation() *time.Location {
+	name := strings.TrimSpace(c.Timezone)
+	if name == "" {
+		name = strings.TrimSpace(os.Getenv("TZ"))
+	}
+	if name == "" {
+		return time.Local
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.Local
+	}
+	return loc
 }
 
 func (c *Config) DBPath() string    { return c.DataDir + "/ddns-agent.db" }

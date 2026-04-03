@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	_ "time/tzdata" // IANA zones embedded; required for time.LoadLocation in scratch Docker (no system zoneinfo)
 
 	"ddns-agent/internal/auth"
 	"ddns-agent/internal/backup"
@@ -23,10 +26,10 @@ import (
 	"ddns-agent/web"
 )
 
-var version = "1.0.0"
+// version is set at link time from the VERSION file (see Dockerfile).
+var version = "dev"
 
 func main() {
-	// Health check mode for Docker HEALTHCHECK
 	if len(os.Args) > 1 && os.Args[1] == "--health" {
 		resp, err := http.Get("http://localhost:8080/health")
 		if err != nil || resp.StatusCode != 200 {
@@ -36,9 +39,7 @@ func main() {
 	}
 
 	cfg := config.Load()
-	log := logger.New()
 
-	// Ensure data + logs dirs before file logging so all messages go to agent.log
 	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "ddns-agent: creating data directory: %v\n", err)
 		os.Exit(1)
@@ -47,22 +48,27 @@ func main() {
 		fmt.Fprintf(os.Stderr, "ddns-agent: creating logs directory: %v\n", err)
 		os.Exit(1)
 	}
-	log.SetFileLog(cfg.LogDir(), cfg.LogRetention)
 
-	log.Info("main", "DDNS Agent v%s starting...", version)
-	log.Info("main", "data directory: %s", cfg.DataDir)
-	log.Info("main", "file log: %s/agent.log (daily rotation, archives kept %d days)", cfg.LogDir(), cfg.LogRetention)
-
-	// Database
 	db, err := database.New(cfg.DBPath())
 	if err != nil {
-		log.Error("main", "opening database: %v", err)
+		fmt.Fprintf(os.Stderr, "ddns-agent: opening database: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close()
+
+	initDefaults(db, cfg)
+
+	tzLoc := appTimeLocation(cfg, db)
+	log := logger.New()
+	log.SetTimeLocation(tzLoc)
+	log.SetFileLog(cfg.LogDir(), cfg.LogRetention, tzLoc)
 	log.SetStore(db)
 
-	// Encryption key
+	log.Info("main", "DDNS Agent v%s starting...", version)
+	log.Info("main", "app timezone (logs): %s", tzLoc.String())
+	log.Info("main", "data directory: %s", cfg.DataDir)
+	log.Info("main", "file log: %s/agent.log (daily rotation, archives kept %d days)", cfg.LogDir(), cfg.LogRetention)
+
 	encKey := cfg.EncryptionKey
 	if encKey == "" {
 		encKey, err = crypto.LoadOrCreateKey(cfg.KeyFile())
@@ -77,14 +83,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// JWT secret
 	jwtSecret := cfg.JWTSecret
 	if jwtSecret == "" {
 		jwtSecret = crypto.GenerateKey()
 		log.Warn("main", "no JWT secret configured, generated ephemeral key (sessions lost on restart)")
 	}
 
-	// Services
 	authSvc := auth.NewService(db, jwtSecret)
 	ipFetcher := ipcheck.New(cfg.HTTPTimeout)
 	sseBroker := sse.NewBroker(100)
@@ -95,20 +99,13 @@ func main() {
 
 	log.SetSSE(sseBroker)
 
-	// Default admin user (admin/admin)
 	ensureDefaultAdmin(db, log)
 
-	// Default settings
-	initDefaults(db, cfg)
-
-	// Auto-backup
 	stopBackup := make(chan struct{})
 	backupSvc.StartAutoBackup(stopBackup)
 
-	// Router
-	handler := server.NewRouter(db, authSvc, updaterSvc, webhookSvc, backupSvc, encryptor, sseBroker, log, web.FS, version)
+	handler := server.NewRouter(db, authSvc, updaterSvc, webhookSvc, backupSvc, encryptor, sseBroker, log, web.FS, version, cfg)
 
-	// HTTP server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      handler,
@@ -117,11 +114,9 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Start updater in background
 	ctx, cancel := context.WithCancel(context.Background())
 	go updaterSvc.Start(ctx)
 
-	// Start HTTP server
 	go func() {
 		log.Info("main", "web panel available at http://0.0.0.0:%d", cfg.Port)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -130,7 +125,6 @@ func main() {
 		}
 	}()
 
-	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -144,6 +138,18 @@ func main() {
 	srv.Shutdown(shutdownCtx)
 	_ = log.CloseFileLog()
 	log.Info("main", "goodbye")
+}
+
+// Setting app_timezone (IANA) overrides DDNS_TIMEZONE / TZ for log timestamps and rotation.
+func appTimeLocation(cfg *config.Config, db *database.DB) *time.Location {
+	if s, err := db.GetSetting("app_timezone"); err == nil {
+		if t := strings.TrimSpace(s); t != "" {
+			if loc, err := time.LoadLocation(t); err == nil {
+				return loc
+			}
+		}
+	}
+	return cfg.TimeLocation()
 }
 
 func ensureDefaultAdmin(db *database.DB, log *logger.Logger) {

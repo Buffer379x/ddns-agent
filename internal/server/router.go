@@ -7,6 +7,7 @@ import (
 
 	"ddns-agent/internal/auth"
 	"ddns-agent/internal/backup"
+	"ddns-agent/internal/config"
 	"ddns-agent/internal/crypto"
 	"ddns-agent/internal/database"
 	"ddns-agent/internal/logger"
@@ -29,6 +30,7 @@ func NewRouter(
 	log *logger.Logger,
 	webFS fs.FS,
 	version string,
+	cfg *config.Config,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -37,7 +39,7 @@ func NewRouter(
 	r.Use(middleware.Compress(5))
 	r.Use(corsMiddleware)
 
-	h := api.NewHandler(db, authSvc, updaterSvc, webhookSvc, backupSvc, encryptor, sseBroker, log, webFS, version)
+	h := api.NewHandler(db, authSvc, updaterSvc, webhookSvc, backupSvc, encryptor, sseBroker, log, webFS, version, cfg)
 
 	loginLimiter := auth.NewRateLimiter(5, time.Minute)
 	apiLimiter := auth.NewRateLimiter(60, time.Minute)
