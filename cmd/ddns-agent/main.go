@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -159,7 +160,7 @@ func main() {
 	go updaterSvc.Start(ctx)
 
 	go func() {
-		log.Info("main", "web panel available at http://0.0.0.0:%d", cfg.Port)
+		log.Info("main", "web panel available at http://%s:%d", localIP(), cfg.Port)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Error("main", "server error: %v", err)
 			os.Exit(1)
@@ -244,4 +245,19 @@ func initDefaults(db *database.DB) {
 			db.SetSetting(d.key, d.value)
 		}
 	}
+}
+
+// localIP returns the first non-loopback IPv4 address of the host.
+// This lets the startup log show the real address under which the panel is reachable.
+func localIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "0.0.0.0"
+	}
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+			return ipNet.IP.String()
+		}
+	}
+	return "0.0.0.0"
 }
