@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html x-data :class="{ 'dark': $store.theme.isDark }" lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,8 +11,12 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+    rel="stylesheet">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -21,31 +26,31 @@
         extend: {
           colors: {
             th: {
-              bg:'var(--c-bg)',surface:'var(--c-surface)','surface-dim':'var(--c-surface-dim)',
-              'surface-low':'var(--c-surface-low)','surface-mid':'var(--c-surface-mid)',
-              'surface-high':'var(--c-surface-high)','surface-highest':'var(--c-surface-highest)',
-              text:'var(--c-text)','text-dim':'var(--c-text-dim)',
-              primary:'var(--c-primary)','primary-light':'var(--c-primary-light)',
-              'primary-dark':'var(--c-primary-dark)','primary-bg':'var(--c-primary-bg)',
-              'primary-text':'var(--c-primary-text)',error:'var(--c-error)',
-              'error-bg':'var(--c-error-bg)','error-text':'var(--c-error-text)',
-              'success-bg':'var(--c-success-bg)','success-text':'var(--c-success-text)',
-              'warning-bg':'var(--c-warning-bg)','warning-text':'var(--c-warning-text)',
-              outline:'var(--c-outline)',
+              bg: 'var(--c-bg)', surface: 'var(--c-surface)', 'surface-dim': 'var(--c-surface-dim)',
+              'surface-low': 'var(--c-surface-low)', 'surface-mid': 'var(--c-surface-mid)',
+              'surface-high': 'var(--c-surface-high)', 'surface-highest': 'var(--c-surface-highest)',
+              text: 'var(--c-text)', 'text-dim': 'var(--c-text-dim)',
+              primary: 'var(--c-primary)', 'primary-light': 'var(--c-primary-light)',
+              'primary-dark': 'var(--c-primary-dark)', 'primary-bg': 'var(--c-primary-bg)',
+              'primary-text': 'var(--c-primary-text)', error: 'var(--c-error)',
+              'error-bg': 'var(--c-error-bg)', 'error-text': 'var(--c-error-text)',
+              'success-bg': 'var(--c-success-bg)', 'success-text': 'var(--c-success-text)',
+              'warning-bg': 'var(--c-warning-bg)', 'warning-text': 'var(--c-warning-text)',
+              outline: 'var(--c-outline)',
             }
           },
-          fontFamily: { headline:['Manrope','sans-serif'], body:['Inter','Manrope','sans-serif'] },
-          boxShadow: { ambient:'0 20px 40px var(--c-shadow)', float:'0 8px 24px var(--c-shadow)', soft:'0 2px 8px var(--c-shadow)' },
+          fontFamily: { headline: ['Manrope', 'sans-serif'], body: ['Inter', 'Manrope', 'sans-serif'] },
+          boxShadow: { ambient: '0 20px 40px var(--c-shadow)', float: '0 8px 24px var(--c-shadow)', soft: '0 2px 8px var(--c-shadow)' },
         },
       },
     };
   </script>
 
   <script>
-    (function(){
-      var t=localStorage.getItem('ddns_theme')||'auto';
-      var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);
-      if(d)document.documentElement.classList.add('dark');
+    (function () {
+      var t = localStorage.getItem('ddns_theme') || 'auto';
+      var d = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme:dark)').matches);
+      if (d) document.documentElement.classList.add('dark');
     })();
   </script>
 
@@ -57,972 +62,1065 @@
 
 <body class="bg-th-bg text-th-text antialiased transition-colors duration-300 min-h-screen">
 
-<!-- LOGIN PAGE -->
-<template x-if="!$store.auth.token">
-  <div x-data="loginPage" class="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-    <div class="absolute -top-40 -right-40 w-[700px] h-[700px] rounded-full bg-th-primary opacity-[0.04] blur-[120px] pointer-events-none"></div>
-    <div class="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-th-primary opacity-[0.06] blur-[100px] pointer-events-none"></div>
-
-    <div class="relative w-full max-w-[400px] bg-th-surface rounded-xl shadow-ambient p-8 animate-fade-up">
-      <div class="flex items-center gap-3 mb-8">
-        <picture>
-          <source srcset="img/logo.webp" type="image/webp">
-          <img src="img/logo.png" alt="DDNS Agent" class="w-10 h-10 rounded-lg shrink-0">
-        </picture>
-        <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <h1 class="font-headline font-bold text-lg leading-tight">DDNS Agent</h1>
-            <span class="text-[0.625rem] text-th-text-dim font-mono" x-text="loginVersion ? 'v' + loginVersion : ''"></span>
-          </div>
-          <p class="text-xs text-th-text-dim">Dynamic DNS Management</p>
-        </div>
+  <!-- LOGIN PAGE -->
+  <template x-if="!$store.auth.token">
+    <div x-data="loginPage" class="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+      <div
+        class="absolute -top-40 -right-40 w-[700px] h-[700px] rounded-full bg-th-primary opacity-[0.04] blur-[120px] pointer-events-none">
+      </div>
+      <div
+        class="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-th-primary opacity-[0.06] blur-[100px] pointer-events-none">
       </div>
 
-      <h2 class="font-headline font-semibold text-xl mb-6" x-text="$store.i18n.t('auth.login')"></h2>
-
-      <form @submit.prevent="submit()" class="space-y-4">
-        <div x-show="errorMsg" x-transition class="flex items-center gap-2 p-3 rounded-lg text-sm" style="background: var(--c-error-bg); color: var(--c-error-text)">
-          <span class="material-symbols-outlined text-base shrink-0">error</span>
-          <span x-text="errorMsg"></span>
-        </div>
-        <div>
-          <label class="label-sm block mb-1.5" x-text="$store.i18n.t('auth.username')"></label>
-          <input type="text" x-model="username" required autocomplete="username"
-                 :placeholder="$store.i18n.t('auth.username')" class="input">
-        </div>
-        <div>
-          <label class="label-sm block mb-1.5" x-text="$store.i18n.t('auth.password')"></label>
-          <input type="password" x-model="password" required autocomplete="current-password"
-                 :placeholder="$store.i18n.t('auth.password')" class="input">
-        </div>
-        <button type="submit" class="btn-primary w-full justify-center !py-3 !text-sm" :disabled="loading">
-          <span class="material-symbols-outlined text-lg" :class="loading && 'animate-spin-slow'"
-                x-text="loading ? 'progress_activity' : 'login'"></span>
-          <span x-text="$store.i18n.t('auth.sign_in')"></span>
-        </button>
-      </form>
-    </div>
-  </div>
-</template>
-
-
-<!-- MAIN APPLICATION -->
-<template x-if="$store.auth.token">
-  <div x-data="mainApp" class="min-h-screen" x-cloak>
-
-    <div x-show="$store.app.sidebarOpen" @click="$store.app.sidebarOpen = false"
-         x-transition.opacity.duration.200ms
-         class="lg:hidden fixed inset-0 z-40" style="background:var(--c-overlay)"></div>
-
-    <!-- Sidebar -->
-    <aside :class="$store.app.sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-           class="fixed left-0 top-0 bottom-0 w-60 bg-th-surface-low z-50 transition-transform duration-300 flex flex-col">
-
-      <div class="px-5 pt-8 pb-4">
-        <div class="flex items-center gap-3">
+      <div class="relative w-full max-w-[400px] bg-th-surface rounded-xl shadow-ambient p-8 animate-fade-up">
+        <div class="flex items-center gap-3 mb-8">
           <picture>
             <source srcset="img/logo.webp" type="image/webp">
-            <img src="img/logo.png" alt="DDNS Agent" class="w-9 h-9 rounded-lg shrink-0">
+            <img src="img/logo.png" alt="DDNS Agent" class="w-10 h-10 rounded-lg shrink-0">
           </picture>
           <div class="min-w-0">
             <div class="flex items-center gap-2">
-              <h1 class="font-headline font-bold text-[0.9375rem] leading-tight truncate">DDNS Agent</h1>
-              <span class="text-[0.625rem] text-th-text-dim font-mono" x-text="$store.auth.version ? 'v' + $store.auth.version : ''"></span>
+              <h1 class="font-headline font-bold text-lg leading-tight">DDNS Agent</h1>
+              <span class="text-[0.625rem] text-th-text-dim font-mono"
+                x-text="loginVersion ? 'v' + loginVersion : ''"></span>
             </div>
-            <p class="text-[0.6875rem] text-th-text-dim truncate">Dynamic DNS Management</p>
+            <p class="text-xs text-th-text-dim">Dynamic DNS Management</p>
           </div>
         </div>
-      </div>
 
-      <nav class="flex-1 px-5 mt-2 space-y-0.5">
-        <template x-for="item in navItems" :key="item.page">
-          <button @click="navigate(item.page)"
-                  :class="$store.app.page === item.page
+        <h2 class="font-headline font-semibold text-xl mb-6" x-text="$store.i18n.t('auth.login')"></h2>
+
+        <form @submit.prevent="submit()" class="space-y-4">
+          <div x-show="errorMsg" x-transition class="flex items-center gap-2 p-3 rounded-lg text-sm"
+            style="background: var(--c-error-bg); color: var(--c-error-text)">
+            <span class="material-symbols-outlined text-base shrink-0">error</span>
+            <span x-text="errorMsg"></span>
+          </div>
+          <div>
+            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('auth.username')"></label>
+            <input type="text" x-model="username" required autocomplete="username"
+              :placeholder="$store.i18n.t('auth.username')" class="input">
+          </div>
+          <div>
+            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('auth.password')"></label>
+            <input type="password" x-model="password" required autocomplete="current-password"
+              :placeholder="$store.i18n.t('auth.password')" class="input">
+          </div>
+          <button type="submit" class="btn-primary w-full justify-center !py-3 !text-sm" :disabled="loading">
+            <span class="material-symbols-outlined text-lg" :class="loading && 'animate-spin-slow'"
+              x-text="loading ? 'progress_activity' : 'login'"></span>
+            <span x-text="$store.i18n.t('auth.sign_in')"></span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </template>
+
+
+  <!-- MAIN APPLICATION -->
+  <template x-if="$store.auth.token">
+    <div x-data="mainApp" class="min-h-screen" x-cloak>
+
+      <div x-show="$store.app.sidebarOpen" @click="$store.app.sidebarOpen = false" x-transition.opacity.duration.200ms
+        class="lg:hidden fixed inset-0 z-40" style="background:var(--c-overlay)"></div>
+
+      <!-- Sidebar -->
+      <aside :class="$store.app.sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+        class="fixed left-0 top-0 bottom-0 w-60 bg-th-surface-low z-50 transition-transform duration-300 flex flex-col">
+
+        <div class="px-5 pt-8 pb-4">
+          <div class="flex items-center gap-3">
+            <picture>
+              <source srcset="img/logo.webp" type="image/webp">
+              <img src="img/logo.png" alt="DDNS Agent" class="w-9 h-9 rounded-lg shrink-0">
+            </picture>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h1 class="font-headline font-bold text-[0.9375rem] leading-tight truncate">DDNS Agent</h1>
+                <span class="text-[0.625rem] text-th-text-dim font-mono"
+                  x-text="$store.auth.version ? 'v' + $store.auth.version : ''"></span>
+              </div>
+              <p class="text-[0.6875rem] text-th-text-dim truncate">Dynamic DNS Management</p>
+            </div>
+          </div>
+        </div>
+
+        <nav class="flex-1 px-5 mt-2 space-y-0.5">
+          <template x-for="item in navItems" :key="item.page">
+            <button @click="navigate(item.page)" :class="$store.app.page === item.page
                     ? 'bg-th-primary-bg text-th-primary-text font-semibold'
                     : 'text-th-text-dim hover:bg-th-surface-high'"
-                  class="w-full flex items-center gap-3 px-3 py-2.5 rounded-full transition-all duration-200 text-[0.8125rem] cursor-pointer border-none bg-transparent">
-            <span class="material-symbols-outlined text-[1.25rem]" x-text="item.icon"></span>
-            <span x-text="$store.i18n.t(item.label)"></span>
+              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-full transition-all duration-200 text-[0.8125rem] cursor-pointer border-none bg-transparent">
+              <span class="material-symbols-outlined text-[1.25rem]" x-text="item.icon"></span>
+              <span x-text="$store.i18n.t(item.label)"></span>
+            </button>
+          </template>
+        </nav>
+
+        <div class="px-5 pb-6 pt-2">
+          <button @click="signOut()"
+            class="signout-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-th-text-dim hover:bg-th-surface-high transition-all duration-200 text-[0.8125rem] cursor-pointer border-none bg-transparent">
+            <span class="material-symbols-outlined text-[1.25rem]">logout</span>
+            <span x-text="$store.i18n.t('nav.sign_out')"></span>
           </button>
-        </template>
-      </nav>
-
-      <div class="px-5 pb-6 pt-2">
-        <button @click="signOut()"
-                class="signout-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-th-text-dim hover:bg-th-surface-high transition-all duration-200 text-[0.8125rem] cursor-pointer border-none bg-transparent">
-          <span class="material-symbols-outlined text-[1.25rem]">logout</span>
-          <span x-text="$store.i18n.t('nav.sign_out')"></span>
-        </button>
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="lg:ml-60 min-h-screen">
-      <div class="p-5 lg:p-10 max-w-[1400px]">
-
-      <!-- Mobile menu button -->
-      <button @click="$store.app.sidebarOpen = !$store.app.sidebarOpen"
-              class="lg:hidden btn-icon mb-4">
-        <span class="material-symbols-outlined">menu</span>
-      </button>
-
-      <!-- OVERVIEW -->
-      <section x-show="$store.app.page === 'overview'"
-               x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-
-        <div class="mb-8">
-          <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('overview.title')"></h1>
-          <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('overview.subtitle')"></p>
         </div>
+      </aside>
 
-        <!-- Stat Cards: total | enabled | sync OK | errors (enabled) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          <div class="bg-th-surface rounded-xl p-5 shadow-soft">
-            <div class="flex items-center gap-4">
-              <div class="w-11 h-11 rounded-lg bg-th-primary-bg flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-th-primary">dns</span>
-              </div>
-              <div>
-                <p class="text-2xl font-headline font-bold leading-none" x-text="stats.total"></p>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.total_records')"></p>
-              </div>
+      <!-- Main Content -->
+      <main class="lg:ml-60 min-h-screen">
+        <div class="p-5 lg:p-10 max-w-[1400px]">
+
+          <!-- Mobile menu button -->
+          <button @click="$store.app.sidebarOpen = !$store.app.sidebarOpen" class="lg:hidden btn-icon mb-4">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+
+          <!-- OVERVIEW -->
+          <section x-show="$store.app.page === 'overview'" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-8">
+              <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('overview.title')">
+              </h1>
+              <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('overview.subtitle')"></p>
             </div>
-          </div>
-          <div class="bg-th-surface rounded-xl p-5 shadow-soft">
-            <div class="flex items-center gap-4">
-              <div class="w-11 h-11 rounded-lg bg-th-primary-bg flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-th-primary">toggle_on</span>
-              </div>
-              <div>
-                <p class="text-2xl font-headline font-bold leading-none" x-text="stats.active"></p>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.active')"></p>
-              </div>
-            </div>
-          </div>
-          <div class="bg-th-surface rounded-xl p-5 shadow-soft">
-            <div class="flex items-center gap-4">
-              <div class="w-11 h-11 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-green-500">check_circle</span>
-              </div>
-              <div>
-                <p class="text-2xl font-headline font-bold leading-none" x-text="stats.successful"></p>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.successful')"></p>
-              </div>
-            </div>
-          </div>
-          <div class="bg-th-surface rounded-xl p-5 shadow-soft">
-            <div class="flex items-center gap-4">
-              <div class="w-11 h-11 rounded-lg bg-th-error-bg flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-th-error-text">error</span>
-              </div>
-              <div>
-                <p class="text-2xl font-headline font-bold leading-none" x-text="stats.errors"></p>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.errors')"></p>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Records Table: visibility via .ddns-layout-md-* only (no Tailwind .hidden on wrapper) -->
-        <div class="bg-th-surface rounded-xl shadow-soft w-full min-w-0">
-          <div class="ddns-layout-md-desktop overflow-x-auto w-full min-w-0">
-          <table class="min-w-full w-max border-collapse table-auto">
-            <thead>
-              <tr>
-                <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.status')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.hostname')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.provider')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.ip_address')"></th>
-                <th scope="col" class="whitespace-nowrap px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.protocol')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.last_sync')"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="rec in activeRecords" :key="rec.id">
-                <tr class="hover:bg-th-surface-low transition-colors duration-150 cursor-default">
-                  <td class="px-3 py-3.5 text-center align-middle">
-                    <span class="status-dot" :class="statusDotClass(rec.status)"></span>
-                  </td>
-                  <td class="px-3 py-3.5 align-middle text-sm font-medium [overflow-wrap:anywhere] break-words" x-text="buildHostname(rec)"></td>
-                  <td class="px-3 py-3.5 align-middle text-sm text-th-text-dim whitespace-nowrap" x-text="providerLabel(rec.provider)"></td>
-                  <td class="px-3 py-3.5 align-middle font-mono text-sm text-th-text-dim tabular-nums whitespace-nowrap" x-text="rec.current_ip || '—'"></td>
-                  <td class="whitespace-nowrap px-3 py-3.5 align-middle text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></td>
-                  <td class="px-3 py-3.5 align-middle text-xs text-th-text-dim whitespace-nowrap" x-text="relativeTime(rec.last_update)"></td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-          </div>
-
-          <div class="ddns-layout-md-mobile p-3 space-y-3">
-            <template x-for="rec in activeRecords" :key="rec.id">
-              <article class="rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="status-dot shrink-0" :class="statusDotClass(rec.status)"></span>
-                    <span class="text-xs font-medium uppercase tracking-wide text-th-text-dim" x-text="$store.i18n.t('table.status')"></span>
+            <!-- Stat Cards: total | enabled | sync OK | errors (enabled) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+              <div class="bg-th-surface rounded-xl p-5 shadow-soft">
+                <div class="flex items-center gap-4">
+                  <div class="w-11 h-11 rounded-lg bg-th-primary-bg flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-th-primary">dns</span>
                   </div>
-                  <span class="text-sm font-medium capitalize truncate" x-text="rec.status"></span>
-                </div>
-                <dl class="space-y-2.5 text-sm">
-                  <div class="flex justify-between gap-3 items-start">
-                    <dt class="text-xs text-th-text-dim shrink-0 pt-0.5" x-text="$store.i18n.t('table.hostname')"></dt>
-                    <dd class="font-medium text-right [overflow-wrap:anywhere] break-words" x-text="buildHostname(rec)"></dd>
-                  </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.provider')"></dt>
-                    <dd class="text-th-text-dim text-right" x-text="providerLabel(rec.provider)"></dd>
-                  </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.ip_address')"></dt>
-                    <dd class="font-mono tabular-nums text-th-text-dim text-right break-all" x-text="rec.current_ip || '—'"></dd>
-                  </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.protocol')"></dt>
-                    <dd class="text-xs font-medium tabular-nums text-th-text-dim" x-text="ipVersionLabel(rec.ip_version)"></dd>
-                  </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.last_sync')"></dt>
-                    <dd class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></dd>
-                  </div>
-                </dl>
-              </article>
-            </template>
-          </div>
-          <div x-show="activeRecords.length === 0" class="text-center py-20 text-th-text-dim">
-            <span class="material-symbols-outlined text-5xl opacity-20 block mb-3">dns</span>
-            <p class="text-sm" x-text="$store.i18n.t('table.no_records')"></p>
-          </div>
-          <div x-show="activeRecords.length > 0" class="px-5 py-3 text-xs text-th-text-dim">
-            <span x-text="$store.i18n.t('table.showing')"></span> <span x-text="activeRecords.length"></span>
-            <span x-text="$store.i18n.t('table.entries')"></span>
-          </div>
-        </div>
-      </section>
-
-
-      <!-- HOSTNAMES -->
-      <section x-show="$store.app.page === 'hostnames'"
-               x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-
-        <div class="flex items-start justify-between gap-4 mb-8">
-          <div>
-            <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('hostnames.title')"></h1>
-            <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('hostnames.subtitle')"></p>
-          </div>
-          <div x-show="$store.auth.isAdmin" class="flex items-center gap-2 shrink-0">
-            <button @click="refreshAll()" class="btn-secondary">
-              <span class="material-symbols-outlined text-lg">refresh</span>
-              <span x-text="$store.i18n.t('nav.refresh')"></span>
-            </button>
-            <button @click="openAddRecord()" class="btn-primary">
-              <span class="material-symbols-outlined text-lg">add_circle</span>
-              <span x-text="$store.i18n.t('hostnames.add')"></span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Desktop/mobile split via .ddns-layout-md-* only -->
-        <div class="bg-th-surface rounded-xl shadow-soft w-full min-w-0">
-          <div class="ddns-layout-md-desktop overflow-x-auto w-full min-w-0">
-          <table class="min-w-full w-max border-collapse table-auto">
-            <thead>
-              <tr>
-                <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.status')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.subdomain')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.domain')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.provider')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.ip_address')"></th>
-                <th scope="col" class="whitespace-nowrap px-3 py-3 text-left label-sm align-middle" x-text="$store.i18n.t('table.protocol')"></th>
-                <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.last_sync')"></th>
-                <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle" x-text="$store.i18n.t('table.active')"></th>
-                <th scope="col" x-show="$store.auth.isAdmin" class="px-3 py-3 text-right label-sm align-middle whitespace-nowrap" x-text="$store.i18n.t('table.actions')"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="rec in sortedRecords" :key="rec.id">
-                <tr class="hover:bg-th-surface-low transition-colors duration-150"
-                    :class="!rec.enabled && 'opacity-50'">
-                  <td class="px-3 py-3.5 text-center align-middle">
-                    <span class="status-dot" :class="statusDotClass(rec.status)"></span>
-                  </td>
-                  <td class="px-3 py-3.5 align-middle text-sm font-medium [overflow-wrap:anywhere] break-words" x-text="subdomainLabel(rec)"></td>
-                  <td class="px-3 py-3.5 align-middle">
-                    <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
-                  </td>
-                  <td class="px-3 py-3.5 align-middle text-sm text-th-text-dim whitespace-nowrap" x-text="providerLabel(rec.provider)"></td>
-                  <td class="px-3 py-3.5 align-middle font-mono text-sm text-th-text-dim tabular-nums whitespace-nowrap" x-text="rec.current_ip || '—'"></td>
-                  <td class="whitespace-nowrap px-3 py-3.5 align-middle text-xs font-medium text-th-text-dim tabular-nums" x-text="ipVersionLabel(rec.ip_version)"></td>
-                  <td class="px-3 py-3.5 align-middle text-xs text-th-text-dim whitespace-nowrap" x-text="relativeTime(rec.last_update)"></td>
-                  <td class="px-3 py-3.5 text-center align-middle">
-                    <span class="material-symbols-outlined text-lg"
-                          :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
-                          x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
-                  </td>
-                  <td x-show="$store.auth.isAdmin" class="px-3 py-3.5 text-right align-middle whitespace-nowrap">
-                    <span class="inline-flex items-center gap-1">
-                      <button type="button" x-show="rec.enabled" @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
-                        <span class="material-symbols-outlined text-base">refresh</span>
-                      </button>
-                      <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
-                        <span class="material-symbols-outlined text-base">edit</span>
-                      </button>
-                      <button @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
-                        <span class="material-symbols-outlined text-base">delete</span>
-                      </button>
-                    </span>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-          </div>
-
-          <div class="ddns-layout-md-mobile p-3 space-y-3">
-            <template x-for="rec in sortedRecords" :key="rec.id">
-              <article class="rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3"
-                       :class="!rec.enabled && 'opacity-50'">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0 flex-1">
-                    <p class="text-xs text-th-text-dim mb-0.5" x-text="$store.i18n.t('table.subdomain')"></p>
-                    <p class="font-semibold text-sm [overflow-wrap:anywhere] break-words" x-text="subdomainLabel(rec)"></p>
-                  </div>
-                  <div class="flex items-center gap-1.5 shrink-0">
-                    <span class="status-dot" :class="statusDotClass(rec.status)"></span>
-                    <span class="text-xs capitalize text-th-text-dim" x-text="rec.status"></span>
+                  <div>
+                    <p class="text-2xl font-headline font-bold leading-none" x-text="stats.total"></p>
+                    <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.total_records')"></p>
                   </div>
                 </div>
-                <div class="min-w-0">
-                  <p class="text-xs text-th-text-dim mb-1" x-text="$store.i18n.t('table.domain')"></p>
-                  <span class="domain-tag max-w-full" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+              </div>
+              <div class="bg-th-surface rounded-xl p-5 shadow-soft">
+                <div class="flex items-center gap-4">
+                  <div class="w-11 h-11 rounded-lg bg-th-primary-bg flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-th-primary">toggle_on</span>
+                  </div>
+                  <div>
+                    <p class="text-2xl font-headline font-bold leading-none" x-text="stats.active"></p>
+                    <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.active')"></p>
+                  </div>
                 </div>
-                <dl class="space-y-2.5 text-sm">
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.provider')"></dt>
-                    <dd class="text-th-text-dim text-right" x-text="providerLabel(rec.provider)"></dd>
+              </div>
+              <div class="bg-th-surface rounded-xl p-5 shadow-soft">
+                <div class="flex items-center gap-4">
+                  <div class="w-11 h-11 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-green-500">check_circle</span>
                   </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.ip_address')"></dt>
-                    <dd class="font-mono tabular-nums text-th-text-dim text-right break-all" x-text="rec.current_ip || '—'"></dd>
+                  <div>
+                    <p class="text-2xl font-headline font-bold leading-none" x-text="stats.successful"></p>
+                    <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.successful')"></p>
                   </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.protocol')"></dt>
-                    <dd class="text-xs font-medium tabular-nums text-th-text-dim" x-text="ipVersionLabel(rec.ip_version)"></dd>
+                </div>
+              </div>
+              <div class="bg-th-surface rounded-xl p-5 shadow-soft">
+                <div class="flex items-center gap-4">
+                  <div class="w-11 h-11 rounded-lg bg-th-error-bg flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-th-error-text">error</span>
                   </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.last_sync')"></dt>
-                    <dd class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></dd>
+                  <div>
+                    <p class="text-2xl font-headline font-bold leading-none" x-text="stats.errors"></p>
+                    <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('overview.errors')"></p>
                   </div>
-                  <div class="flex justify-between gap-3 items-center">
-                    <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.active')"></dt>
-                    <dd>
-                      <span class="material-symbols-outlined text-lg align-middle"
+                </div>
+              </div>
+            </div>
+
+            <!-- Records Table: visibility via .ddns-layout-md-* only (no Tailwind .hidden on wrapper) -->
+            <div class="bg-th-surface rounded-xl shadow-soft w-full min-w-0">
+              <div class="ddns-layout-md-desktop overflow-x-auto w-full min-w-0">
+                <table class="min-w-full w-max border-collapse table-auto">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle"
+                        x-text="$store.i18n.t('table.status')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle"
+                        x-text="$store.i18n.t('table.hostname')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap"
+                        x-text="$store.i18n.t('table.provider')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap"
+                        x-text="$store.i18n.t('table.ip_address')"></th>
+                      <th scope="col" class="whitespace-nowrap px-3 py-3 text-left label-sm align-middle"
+                        x-text="$store.i18n.t('table.protocol')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap"
+                        x-text="$store.i18n.t('table.last_sync')"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="rec in activeRecords" :key="rec.id">
+                      <tr class="hover:bg-th-surface-low transition-colors duration-150 cursor-default">
+                        <td class="px-3 py-3.5 text-center align-middle">
+                          <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                        </td>
+                        <td class="px-3 py-3.5 align-middle text-sm font-medium [overflow-wrap:anywhere] break-words"
+                          x-text="buildHostname(rec)"></td>
+                        <td class="px-3 py-3.5 align-middle text-sm text-th-text-dim whitespace-nowrap"
+                          x-text="providerLabel(rec.provider)"></td>
+                        <td
+                          class="px-3 py-3.5 align-middle font-mono text-sm text-th-text-dim tabular-nums whitespace-nowrap"
+                          x-text="rec.current_ip || '—'"></td>
+                        <td
+                          class="whitespace-nowrap px-3 py-3.5 align-middle text-xs font-medium text-th-text-dim tabular-nums"
+                          x-text="ipVersionLabel(rec.ip_version)"></td>
+                        <td class="px-3 py-3.5 align-middle text-xs text-th-text-dim whitespace-nowrap"
+                          x-text="relativeTime(rec.last_update)"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="ddns-layout-md-mobile p-3 space-y-3">
+                <template x-for="rec in activeRecords" :key="rec.id">
+                  <article class="rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="status-dot shrink-0" :class="statusDotClass(rec.status)"></span>
+                        <span class="text-xs font-medium uppercase tracking-wide text-th-text-dim"
+                          x-text="$store.i18n.t('table.status')"></span>
+                      </div>
+                      <span class="text-sm font-medium capitalize truncate" x-text="rec.status"></span>
+                    </div>
+                    <dl class="space-y-2.5 text-sm">
+                      <div class="flex justify-between gap-3 items-start">
+                        <dt class="text-xs text-th-text-dim shrink-0 pt-0.5" x-text="$store.i18n.t('table.hostname')">
+                        </dt>
+                        <dd class="font-medium text-right [overflow-wrap:anywhere] break-words"
+                          x-text="buildHostname(rec)"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.provider')"></dt>
+                        <dd class="text-th-text-dim text-right" x-text="providerLabel(rec.provider)"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.ip_address')"></dt>
+                        <dd class="font-mono tabular-nums text-th-text-dim text-right break-all"
+                          x-text="rec.current_ip || '—'"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.protocol')"></dt>
+                        <dd class="text-xs font-medium tabular-nums text-th-text-dim"
+                          x-text="ipVersionLabel(rec.ip_version)"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.last_sync')"></dt>
+                        <dd class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></dd>
+                      </div>
+                    </dl>
+                  </article>
+                </template>
+              </div>
+              <div x-show="activeRecords.length === 0" class="text-center py-20 text-th-text-dim">
+                <span class="material-symbols-outlined text-5xl opacity-20 block mb-3">dns</span>
+                <p class="text-sm" x-text="$store.i18n.t('table.no_records')"></p>
+              </div>
+              <div x-show="activeRecords.length > 0" class="px-5 py-3 text-xs text-th-text-dim">
+                <span x-text="$store.i18n.t('table.showing')"></span> <span x-text="activeRecords.length"></span>
+                <span x-text="$store.i18n.t('table.entries')"></span>
+              </div>
+            </div>
+          </section>
+
+
+          <!-- HOSTNAMES -->
+          <section x-show="$store.app.page === 'hostnames'" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="flex items-start justify-between gap-4 mb-8">
+              <div>
+                <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]"
+                  x-text="$store.i18n.t('hostnames.title')"></h1>
+                <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('hostnames.subtitle')"></p>
+              </div>
+              <div x-show="$store.auth.isAdmin" class="flex items-center gap-2 shrink-0">
+                <button @click="refreshAll()" class="btn-secondary">
+                  <span class="material-symbols-outlined text-lg">refresh</span>
+                  <span x-text="$store.i18n.t('nav.refresh')"></span>
+                </button>
+                <button @click="openAddRecord()" class="btn-primary">
+                  <span class="material-symbols-outlined text-lg">add_circle</span>
+                  <span x-text="$store.i18n.t('hostnames.add')"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Desktop/mobile split via .ddns-layout-md-* only -->
+            <div class="bg-th-surface rounded-xl shadow-soft w-full min-w-0">
+              <div class="ddns-layout-md-desktop overflow-x-auto w-full min-w-0">
+                <table class="min-w-full w-max border-collapse table-auto">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle"
+                        x-text="$store.i18n.t('table.status')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle"
+                        x-text="$store.i18n.t('table.subdomain')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle"
+                        x-text="$store.i18n.t('table.domain')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap"
+                        x-text="$store.i18n.t('table.provider')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap"
+                        x-text="$store.i18n.t('table.ip_address')"></th>
+                      <th scope="col" class="whitespace-nowrap px-3 py-3 text-left label-sm align-middle"
+                        x-text="$store.i18n.t('table.protocol')"></th>
+                      <th scope="col" class="px-3 py-3 text-left label-sm align-middle whitespace-nowrap"
+                        x-text="$store.i18n.t('table.last_sync')"></th>
+                      <th scope="col" class="w-12 px-3 py-3 text-center label-sm align-middle"
+                        x-text="$store.i18n.t('table.active')"></th>
+                      <th scope="col" x-show="$store.auth.isAdmin"
+                        class="px-3 py-3 text-right label-sm align-middle whitespace-nowrap"
+                        x-text="$store.i18n.t('table.actions')"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="rec in sortedRecords" :key="rec.id">
+                      <tr class="hover:bg-th-surface-low transition-colors duration-150"
+                        :class="!rec.enabled && 'opacity-50'">
+                        <td class="px-3 py-3.5 text-center align-middle">
+                          <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                        </td>
+                        <td class="px-3 py-3.5 align-middle text-sm font-medium [overflow-wrap:anywhere] break-words"
+                          x-text="subdomainLabel(rec)"></td>
+                        <td class="px-3 py-3.5 align-middle">
+                          <span class="domain-tag" :class="domainTagClass(rec.domain)" x-text="rec.domain"></span>
+                        </td>
+                        <td class="px-3 py-3.5 align-middle text-sm text-th-text-dim whitespace-nowrap"
+                          x-text="providerLabel(rec.provider)"></td>
+                        <td
+                          class="px-3 py-3.5 align-middle font-mono text-sm text-th-text-dim tabular-nums whitespace-nowrap"
+                          x-text="rec.current_ip || '—'"></td>
+                        <td
+                          class="whitespace-nowrap px-3 py-3.5 align-middle text-xs font-medium text-th-text-dim tabular-nums"
+                          x-text="ipVersionLabel(rec.ip_version)"></td>
+                        <td class="px-3 py-3.5 align-middle text-xs text-th-text-dim whitespace-nowrap"
+                          x-text="relativeTime(rec.last_update)"></td>
+                        <td class="px-3 py-3.5 text-center align-middle">
+                          <span class="material-symbols-outlined text-lg"
                             :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
                             x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
-                    </dd>
-                  </div>
-                </dl>
-                <div x-show="$store.auth.isAdmin" class="flex flex-wrap items-center justify-end gap-1 pt-1 border-t border-th-outline/30">
-                  <button type="button" x-show="rec.enabled" @click="refreshRecord(rec.id)" class="btn-icon" title="Sync">
-                    <span class="material-symbols-outlined text-base">refresh</span>
-                  </button>
-                  <button type="button" @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
-                    <span class="material-symbols-outlined text-base">edit</span>
-                  </button>
-                  <button type="button" @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
-                    <span class="material-symbols-outlined text-base">delete</span>
-                  </button>
-                </div>
-              </article>
-            </template>
-          </div>
-          <div x-show="records.length === 0" class="text-center py-20 text-th-text-dim">
-            <span class="material-symbols-outlined text-5xl opacity-20 block mb-3">dns</span>
-            <p class="text-sm mb-4" x-text="$store.i18n.t('table.no_records')"></p>
-            <button x-show="$store.auth.isAdmin" @click="openAddRecord()" class="btn-primary">
-              <span class="material-symbols-outlined text-lg">add_circle</span>
-              <span x-text="$store.i18n.t('hostnames.add')"></span>
-            </button>
-          </div>
-          <div x-show="records.length > 0" class="px-5 py-3 text-xs text-th-text-dim">
-            <span x-text="$store.i18n.t('table.showing')"></span> <span x-text="records.length"></span>
-            <span x-text="$store.i18n.t('table.entries')"></span>
-          </div>
-        </div>
-      </section>
+                        </td>
+                        <td x-show="$store.auth.isAdmin" class="px-3 py-3.5 text-right align-middle whitespace-nowrap">
+                          <span class="inline-flex items-center gap-1">
+                            <button type="button" x-show="rec.enabled" @click="refreshRecord(rec.id)" class="btn-icon"
+                              title="Sync">
+                              <span class="material-symbols-outlined text-base">refresh</span>
+                            </button>
+                            <button @click="openEditRecord(rec)" class="btn-icon" :title="$store.i18n.t('common.edit')">
+                              <span class="material-symbols-outlined text-base">edit</span>
+                            </button>
+                            <button @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error"
+                              :title="$store.i18n.t('common.delete')">
+                              <span class="material-symbols-outlined text-base">delete</span>
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
 
-
-      <!-- LOGS -->
-      <section x-show="$store.app.page === 'logs'"
-               x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
-               class="flex flex-col" style="height: calc(100vh - 5rem)">
-
-        <div class="mb-4 shrink-0">
-          <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('logs.title')"></h1>
-          <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('logs.subtitle')"></p>
-        </div>
-
-        <!-- Level Filters + Search -->
-        <div class="flex flex-wrap items-center gap-2 mb-4 shrink-0">
-          <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-green-500/15 text-green-500">
-            <span class="status-dot st-success animate-pulse-dot"></span>
-            <span x-text="$store.i18n.t('logs.live')"></span>
-          </span>
-          <template x-for="lvl in ['SUCCESS','INFO','WARNING','ERROR','CRITICAL']" :key="lvl">
-            <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none px-2.5 py-1 rounded-full transition-colors duration-150 font-medium"
-                   :class="logFilterClass(lvl, logLevels[lvl])">
-              <input type="checkbox" x-model="logLevels[lvl]" class="hidden">
-              <span x-text="lvl"></span>
-            </label>
-          </template>
-          <div class="flex-1 min-w-[180px]">
-            <input type="text" x-model="logSearch" :placeholder="$store.i18n.t('logs.filter')" class="input !py-1.5 !text-xs">
-          </div>
-        </div>
-
-        <!-- Console -->
-        <div class="log-console flex-1 min-h-0">
-          <template x-for="log in getFilteredLogs()" :key="log.id || log.created_at">
-            <div class="log-entry flex gap-3 px-2 py-0.5 rounded">
-              <span class="shrink-0 w-[4.5rem] text-right opacity-50" x-text="formatLogTime(log.created_at)"></span>
-              <span class="shrink-0 w-16 text-[0.6875rem] uppercase font-semibold" :class="logLevelClass(log.level)" x-text="log.level"></span>
-              <span x-show="log.source" class="shrink-0 opacity-40" x-text="'[' + (log.source || '') + ']'"></span>
-              <span class="log-message break-all" x-text="log.message"></span>
+              <div class="ddns-layout-md-mobile p-3 space-y-3">
+                <template x-for="rec in sortedRecords" :key="rec.id">
+                  <article class="rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3"
+                    :class="!rec.enabled && 'opacity-50'">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0 flex-1">
+                        <p class="text-xs text-th-text-dim mb-0.5" x-text="$store.i18n.t('table.subdomain')"></p>
+                        <p class="font-semibold text-sm [overflow-wrap:anywhere] break-words"
+                          x-text="subdomainLabel(rec)"></p>
+                      </div>
+                      <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="status-dot" :class="statusDotClass(rec.status)"></span>
+                        <span class="text-xs capitalize text-th-text-dim" x-text="rec.status"></span>
+                      </div>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-xs text-th-text-dim mb-1" x-text="$store.i18n.t('table.domain')"></p>
+                      <span class="domain-tag max-w-full" :class="domainTagClass(rec.domain)"
+                        x-text="rec.domain"></span>
+                    </div>
+                    <dl class="space-y-2.5 text-sm">
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.provider')"></dt>
+                        <dd class="text-th-text-dim text-right" x-text="providerLabel(rec.provider)"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.ip_address')"></dt>
+                        <dd class="font-mono tabular-nums text-th-text-dim text-right break-all"
+                          x-text="rec.current_ip || '—'"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.protocol')"></dt>
+                        <dd class="text-xs font-medium tabular-nums text-th-text-dim"
+                          x-text="ipVersionLabel(rec.ip_version)"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.last_sync')"></dt>
+                        <dd class="text-xs text-th-text-dim" x-text="relativeTime(rec.last_update)"></dd>
+                      </div>
+                      <div class="flex justify-between gap-3 items-center">
+                        <dt class="text-xs text-th-text-dim shrink-0" x-text="$store.i18n.t('table.active')"></dt>
+                        <dd>
+                          <span class="material-symbols-outlined text-lg align-middle"
+                            :class="rec.enabled ? 'text-green-500' : 'text-th-text-dim opacity-40'"
+                            x-text="rec.enabled ? 'check_circle' : 'cancel'"></span>
+                        </dd>
+                      </div>
+                    </dl>
+                    <div x-show="$store.auth.isAdmin"
+                      class="flex flex-wrap items-center justify-end gap-1 pt-1 border-t border-th-outline/30">
+                      <button type="button" x-show="rec.enabled" @click="refreshRecord(rec.id)" class="btn-icon"
+                        title="Sync">
+                        <span class="material-symbols-outlined text-base">refresh</span>
+                      </button>
+                      <button type="button" @click="openEditRecord(rec)" class="btn-icon"
+                        :title="$store.i18n.t('common.edit')">
+                        <span class="material-symbols-outlined text-base">edit</span>
+                      </button>
+                      <button type="button" @click="deleteRecord(rec.id)" class="btn-icon hover:!text-th-error"
+                        :title="$store.i18n.t('common.delete')">
+                        <span class="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    </div>
+                  </article>
+                </template>
+              </div>
+              <div x-show="records.length === 0" class="text-center py-20 text-th-text-dim">
+                <span class="material-symbols-outlined text-5xl opacity-20 block mb-3">dns</span>
+                <p class="text-sm mb-4" x-text="$store.i18n.t('table.no_records')"></p>
+                <button x-show="$store.auth.isAdmin" @click="openAddRecord()" class="btn-primary">
+                  <span class="material-symbols-outlined text-lg">add_circle</span>
+                  <span x-text="$store.i18n.t('hostnames.add')"></span>
+                </button>
+              </div>
+              <div x-show="records.length > 0" class="px-5 py-3 text-xs text-th-text-dim">
+                <span x-text="$store.i18n.t('table.showing')"></span> <span x-text="records.length"></span>
+                <span x-text="$store.i18n.t('table.entries')"></span>
+              </div>
             </div>
-          </template>
-          <div x-show="getFilteredLogs().length === 0" class="text-center py-12 opacity-40">
-            <span class="material-symbols-outlined text-3xl block mb-2">terminal</span>
-            <p class="text-xs" x-text="$store.i18n.t('logs.no_logs')"></p>
-          </div>
-        </div>
-
-        <!-- Stats bar with filtered count -->
-        <div class="flex items-center gap-6 mt-3 text-xs text-th-text-dim shrink-0">
-          <span><span x-text="$store.i18n.t('logs.total_events')"></span>: <strong x-text="logTotal"></strong></span>
-          <span x-show="isLogFiltered()">
-            <span x-text="$store.i18n.t('logs.filtered_events')"></span>: <strong x-text="getFilteredLogs().length"></strong>
-          </span>
-        </div>
-      </section>
+          </section>
 
 
-      <!-- SETTINGS (admin only) -->
-      <section x-show="$store.app.page === 'settings'"
-               x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+          <!-- LOGS -->
+          <section x-show="$store.app.page === 'logs'" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+            class="flex flex-col" style="height: calc(100vh - 5rem)">
 
-        <div class="mb-8">
-          <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('settings.title')"></h1>
-          <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('settings.subtitle')"></p>
-        </div>
+            <div class="mb-4 shrink-0">
+              <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('logs.title')"></h1>
+              <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('logs.subtitle')"></p>
+            </div>
 
-        <div class="space-y-8">
-
-          <!-- General | Appearance -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- General -->
-            <div class="bg-th-surface rounded-xl p-6 shadow-soft space-y-5">
-              <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.general')"></h3>
-              <div class="grid grid-cols-2 gap-4">
-                <div class="min-w-0">
-                  <p class="label-sm" x-text="$store.i18n.t('settings.version')"></p>
-                  <p class="text-sm font-mono font-medium mt-0.5 truncate" x-text="$store.auth.version ? 'v' + $store.auth.version : '—'"></p>
-                </div>
-                <div class="min-w-0">
-                  <p class="label-sm" x-text="$store.i18n.t('settings.records_count')"></p>
-                  <p class="text-sm font-medium mt-0.5 tabular-nums" x-text="stats.total"></p>
-                </div>
-              </div>
-              <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.refresh_interval')"></label>
-                <select x-model="settingsForm.refresh_interval" @change="saveSettings()" class="select">
-                  <option value="60">1 min</option>
-                  <option value="120">2 min</option>
-                  <option value="300">5 min</option>
-                  <option value="600">10 min</option>
-                  <option value="900">15 min</option>
-                  <option value="1800">30 min</option>
-                  <option value="3600">1 hour</option>
-                </select>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.refresh_help')"></p>
-              </div>
-              <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.app_timezone')"></label>
-                <input type="text" class="input" list="app-timezone-list"
-                       x-model="settingsForm.app_timezone"
-                       @change="saveSettings()"
-                       :placeholder="$store.i18n.t('settings.app_timezone_placeholder')">
-                <datalist id="app-timezone-list">
-                  <option value="UTC"></option>
-                  <option value="Europe/Berlin"></option>
-                  <option value="Europe/London"></option>
-                  <option value="Europe/Paris"></option>
-                  <option value="Europe/Zurich"></option>
-                  <option value="America/New_York"></option>
-                  <option value="America/Los_Angeles"></option>
-                  <option value="Asia/Tokyo"></option>
-                  <option value="Australia/Sydney"></option>
-                </datalist>
-                <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.app_timezone_help')"></p>
+            <!-- Level Filters + Search -->
+            <div class="flex flex-wrap items-center gap-2 mb-4 shrink-0">
+              <span
+                class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-green-500/15 text-green-500">
+                <span class="status-dot st-success animate-pulse-dot"></span>
+                <span x-text="$store.i18n.t('logs.live')"></span>
+              </span>
+              <template x-for="lvl in ['SUCCESS','INFO','WARNING','ERROR','CRITICAL']" :key="lvl">
+                <label
+                  class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none px-2.5 py-1 rounded-full transition-colors duration-150 font-medium"
+                  :class="logFilterClass(lvl, logLevels[lvl])">
+                  <input type="checkbox" x-model="logLevels[lvl]" class="hidden">
+                  <span x-text="lvl"></span>
+                </label>
+              </template>
+              <div class="flex-1 min-w-[180px]">
+                <input type="text" x-model="logSearch" :placeholder="$store.i18n.t('logs.filter')"
+                  class="input !py-1.5 !text-xs">
               </div>
             </div>
 
-            <!-- Appearance -->
-            <div class="bg-th-surface rounded-xl p-6 shadow-soft space-y-5">
-              <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.appearance')"></h3>
-              <div>
-                <label class="label-sm block mb-2" x-text="$store.i18n.t('settings.theme')"></label>
-                <div class="flex gap-2">
-                  <template x-for="m in ['light','dark','auto']" :key="m">
-                    <button type="button" @click="$store.theme.set(m)"
-                            :class="[$store.theme.mode === m ? 'btn-primary' : 'btn-secondary', 'flex-1', 'min-w-0', 'justify-center']">
-                      <span class="material-symbols-outlined text-lg shrink-0" x-text="m === 'light' ? 'light_mode' : m === 'dark' ? 'dark_mode' : 'auto_mode'"></span>
-                      <span x-text="$store.i18n.t('settings.theme_' + m)"></span>
-                    </button>
-                  </template>
-                </div>
-              </div>
-              <div>
-                <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.language')"></label>
-                <select @change="$store.i18n.load($event.target.value)" class="select">
-                  <template x-for="lang in $store.i18n.available" :key="lang.code">
-                    <option :value="lang.code" :selected="lang.code === $store.i18n.locale" x-text="lang.name"></option>
-                  </template>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Webhooks -->
-          <div class="bg-th-surface rounded-xl p-6 shadow-soft">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.webhooks')"></h3>
-                <p class="text-xs text-th-text-dim mt-0.5" x-text="$store.i18n.t('settings.webhooks_desc')"></p>
-              </div>
-              <button @click="openAddWebhook()" class="btn-primary">
-                <span class="material-symbols-outlined text-lg">add_circle</span>
-                <span x-text="$store.i18n.t('settings.add_webhook')"></span>
-              </button>
-            </div>
-            <div class="space-y-2">
-              <template x-for="hook in webhooks" :key="hook.id">
-                <div class="flex items-center gap-3 p-3 rounded-lg bg-th-surface-low">
-                  <span class="material-symbols-outlined text-th-text-dim text-lg">webhook</span>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium truncate" x-text="hook.name"></p>
-                    <p class="text-xs text-th-text-dim truncate" x-text="hook.url"></p>
-                  </div>
-                  <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                        :class="hook.enabled ? 'bg-th-success-bg text-th-success-text' : 'bg-th-surface-high text-th-text-dim'"
-                        x-text="hook.enabled ? 'Active' : 'Off'"></span>
-                  <button @click="testWebhook(hook.id)" class="btn-icon"><span class="material-symbols-outlined text-base">send</span></button>
-                  <button @click="openEditWebhook(hook)" class="btn-icon"><span class="material-symbols-outlined text-base">edit</span></button>
-                  <button @click="deleteWebhook(hook.id)" class="btn-icon hover:!text-th-error"><span class="material-symbols-outlined text-base">delete</span></button>
+            <!-- Console -->
+            <div class="log-console flex-1 min-h-0">
+              <template x-for="log in getFilteredLogs()" :key="log.id || log.created_at">
+                <div class="log-entry flex gap-3 px-2 py-0.5 rounded">
+                  <span class="shrink-0 w-[10.5rem] text-right opacity-50"
+                    x-text="formatLogTime(log.created_at)"></span>
+                  <span class="shrink-0 w-16 text-[0.6875rem] uppercase font-semibold" :class="logLevelClass(log.level)"
+                    x-text="log.level"></span>
+                  <span x-show="log.source" class="shrink-0 opacity-40" x-text="'[' + (log.source || '') + ']'"></span>
+                  <span class="log-message break-all" x-text="log.message"></span>
                 </div>
               </template>
-              <p x-show="webhooks.length === 0" class="text-sm text-th-text-dim text-center py-6" x-text="$store.i18n.t('users.no_webhooks')"></p>
-            </div>
-          </div>
-
-          <!-- Advanced (left) | Backup config + Danger (right, stacked) -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <div class="bg-th-surface rounded-xl p-6 shadow-soft">
-              <h3 class="font-headline font-semibold mb-1" x-text="$store.i18n.t('settings.advanced')"></h3>
-              <p class="text-xs text-th-text-dim mb-4" x-text="$store.i18n.t('settings.advanced_desc')"></p>
-              <div class="space-y-5">
-                <div>
-                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.cooldown_period')"></label>
-                  <select x-model="settingsForm.cooldown_seconds" @change="saveSettings()" class="select">
-                    <option value="60">1 min</option>
-                    <option value="120">2 min</option>
-                    <option value="300">5 min</option>
-                    <option value="600">10 min</option>
-                    <option value="900">15 min</option>
-                    <option value="1800">30 min</option>
-                    <option value="3600">1 hour</option>
-                  </select>
-                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.cooldown_help')"></p>
-                </div>
-                <div>
-                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.http_timeout')"></label>
-                  <select x-model="settingsForm.http_timeout_seconds" @change="saveSettings()" class="select">
-                    <option value="5">5 s</option>
-                    <option value="10">10 s</option>
-                    <option value="15">15 s</option>
-                    <option value="30">30 s</option>
-                    <option value="60">1 min</option>
-                    <option value="120">2 min</option>
-                    <option value="300">5 min</option>
-                  </select>
-                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.http_timeout_help')"></p>
-                </div>
-                <div>
-                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.backup_retention')"></label>
-                  <select x-model="settingsForm.backup_retention" @change="saveSettings()" class="select">
-                    <option value="3">3</option>
-                    <option value="5">5</option>
-                    <option value="7">7</option>
-                    <option value="14">14</option>
-                    <option value="21">21</option>
-                    <option value="30">30</option>
-                    <option value="60">60</option>
-                    <option value="90">90</option>
-                  </select>
-                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.backup_retention_help')"></p>
-                </div>
-                <div>
-                  <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.log_archive_retention')"></label>
-                  <select x-model="settingsForm.log_archive_days" @change="saveSettings()" class="select">
-                    <option value="3">3</option>
-                    <option value="7">7</option>
-                    <option value="14">14</option>
-                    <option value="30">30</option>
-                    <option value="60">60</option>
-                    <option value="90">90</option>
-                    <option value="180">180</option>
-                    <option value="365">365</option>
-                  </select>
-                  <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.log_archive_retention_help')"></p>
-                </div>
+              <div x-show="getFilteredLogs().length === 0" class="text-center py-12 opacity-40">
+                <span class="material-symbols-outlined text-3xl block mb-2">terminal</span>
+                <p class="text-xs" x-text="$store.i18n.t('logs.no_logs')"></p>
               </div>
+            </div>
+
+            <!-- Stats bar with filtered count -->
+            <div class="flex items-center gap-6 mt-3 text-xs text-th-text-dim shrink-0">
+              <span><span x-text="$store.i18n.t('logs.total_events')"></span>: <strong
+                  x-text="logTotal"></strong></span>
+              <span x-show="isLogFiltered()">
+                <span x-text="$store.i18n.t('logs.filtered_events')"></span>: <strong
+                  x-text="getFilteredLogs().length"></strong>
+              </span>
+            </div>
+          </section>
+
+
+          <!-- SETTINGS (admin only) -->
+          <section x-show="$store.app.page === 'settings'" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-8">
+              <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('settings.title')">
+              </h1>
+              <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('settings.subtitle')"></p>
             </div>
 
             <div class="space-y-8">
-              <div class="bg-th-surface rounded-xl p-6 shadow-soft">
-                <h3 class="font-headline font-semibold mb-4" x-text="$store.i18n.t('settings.backup_config')"></h3>
-                <div class="flex flex-wrap gap-3">
-                  <button @click="exportConfig()" class="btn-primary">
-                    <span class="material-symbols-outlined text-lg">download</span>
-                    <span x-text="$store.i18n.t('settings.export')"></span>
-                  </button>
-                  <input type="file" accept=".json" x-ref="importFile" class="hidden" @change="importConfigPickFile($event)">
-                  <button @click="$refs.importFile.click()" class="btn-primary">
-                    <span class="material-symbols-outlined text-lg">upload</span>
-                    <span x-text="$store.i18n.t('settings.import')"></span>
-                  </button>
-                </div>
-                <p class="text-xs text-th-text-dim mt-4 leading-relaxed" x-text="$store.i18n.t('settings.export_secrets_note')"></p>
-              </div>
 
-              <div class="bg-th-surface rounded-xl p-6 shadow-soft" style="box-shadow: inset 0 0 0 1px var(--c-error-bg)">
-                <h3 class="font-headline font-semibold text-th-error" x-text="$store.i18n.t('settings.danger')"></h3>
-                <p class="text-xs text-th-text-dim mt-0.5 mb-5" x-text="$store.i18n.t('settings.danger_desc')"></p>
-                <div class="flex flex-wrap gap-3">
-                  <button @click="clearLogs()" class="btn-danger">
-                    <span class="material-symbols-outlined text-base">delete_sweep</span>
-                    <span x-text="$store.i18n.t('settings.clear_logs')"></span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      <!-- USERS (admin only) -->
-      <section x-show="$store.app.page === 'users'"
-               x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-
-        <div class="flex items-start justify-between gap-4 mb-8">
-          <div>
-            <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('users.title')"></h1>
-            <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('users.subtitle')"></p>
-          </div>
-          <button @click="openAddUser()" class="btn-primary shrink-0">
-            <span class="material-symbols-outlined text-lg">person_add</span>
-            <span x-text="$store.i18n.t('users.add')"></span>
-          </button>
-        </div>
-
-        <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden">
-          <div class="ddns-layout-sm-desktop">
-            <div class="grid grid-cols-[1fr_6rem_10rem_5rem] gap-4 items-center px-5 py-3">
-            <span class="label-sm" x-text="$store.i18n.t('users.username')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('users.role')"></span>
-            <span class="label-sm" x-text="$store.i18n.t('users.created')"></span>
-            <span></span>
-            </div>
-          </div>
-          <div class="p-3 space-y-3 sm:p-0 sm:space-y-0">
-            <!-- Alpine: <template x-for> must have exactly ONE root node — wrap mobile + desktop -->
-            <template x-for="user in sortedUsers" :key="user.id">
-              <div>
-              <article class="ddns-layout-sm-mobile rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3">
-                <div class="flex items-center justify-between gap-3">
-                  <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-10 h-10 rounded-full bg-th-primary-bg text-th-primary-text flex items-center justify-center text-sm font-bold uppercase shrink-0"
-                         x-text="user.username.charAt(0)"></div>
+              <!-- General | Appearance -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- General -->
+                <div class="bg-th-surface rounded-xl p-6 shadow-soft space-y-5">
+                  <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.general')"></h3>
+                  <div class="grid grid-cols-2 gap-4">
                     <div class="min-w-0">
-                      <p class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.username')"></p>
-                      <p class="text-sm font-semibold truncate" x-text="user.username"></p>
+                      <p class="label-sm" x-text="$store.i18n.t('settings.version')"></p>
+                      <p class="text-sm font-mono font-medium mt-0.5 truncate"
+                        x-text="$store.auth.version ? 'v' + $store.auth.version : '—'"></p>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="label-sm" x-text="$store.i18n.t('settings.records_count')"></p>
+                      <p class="text-sm font-medium mt-0.5 tabular-nums" x-text="stats.total"></p>
                     </div>
                   </div>
-                  <div class="flex items-center gap-1 shrink-0">
-                    <button type="button" @click="openEditUser(user)" class="btn-icon" :title="$store.i18n.t('common.edit')">
-                      <span class="material-symbols-outlined text-base">edit</span>
-                    </button>
-                    <button type="button" x-show="user.id !== 1" @click="deleteUser(user.id)" class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
-                      <span class="material-symbols-outlined text-base">delete</span>
-                    </button>
+                  <div>
+                    <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.refresh_interval')"></label>
+                    <select x-model="settingsForm.refresh_interval" @change="saveSettings()" class="select">
+                      <option value="60">1 min</option>
+                      <option value="120">2 min</option>
+                      <option value="300">5 min</option>
+                      <option value="600">10 min</option>
+                      <option value="900">15 min</option>
+                      <option value="1800">30 min</option>
+                      <option value="3600">1 hour</option>
+                    </select>
+                    <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.refresh_help')"></p>
+                  </div>
+                  <div>
+                    <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.app_timezone')"></label>
+                    <input type="text" class="input" list="app-timezone-list" x-model="settingsForm.app_timezone"
+                      @change="saveSettings()" :placeholder="$store.i18n.t('settings.app_timezone_placeholder')">
+                    <datalist id="app-timezone-list">
+                      <option value="UTC"></option>
+                      <option value="Europe/Berlin"></option>
+                      <option value="Europe/London"></option>
+                      <option value="Europe/Paris"></option>
+                      <option value="Europe/Zurich"></option>
+                      <option value="America/New_York"></option>
+                      <option value="America/Los_Angeles"></option>
+                      <option value="Asia/Tokyo"></option>
+                      <option value="Australia/Sydney"></option>
+                    </datalist>
+                    <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.app_timezone_help')"></p>
                   </div>
                 </div>
-                <dl class="grid grid-cols-2 gap-3 text-sm">
+
+                <!-- Appearance -->
+                <div class="bg-th-surface rounded-xl p-6 shadow-soft space-y-5">
+                  <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.appearance')"></h3>
                   <div>
-                    <dt class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.role')"></dt>
-                    <dd class="mt-1">
+                    <label class="label-sm block mb-2" x-text="$store.i18n.t('settings.theme')"></label>
+                    <div class="flex gap-2">
+                      <template x-for="m in ['light','dark','auto']" :key="m">
+                        <button type="button" @click="$store.theme.set(m)"
+                          :class="[$store.theme.mode === m ? 'btn-primary' : 'btn-secondary', 'flex-1', 'min-w-0', 'justify-center']">
+                          <span class="material-symbols-outlined text-lg shrink-0"
+                            x-text="m === 'light' ? 'light_mode' : m === 'dark' ? 'dark_mode' : 'auto_mode'"></span>
+                          <span x-text="$store.i18n.t('settings.theme_' + m)"></span>
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.language')"></label>
+                    <select @change="$store.i18n.load($event.target.value)" class="select">
+                      <template x-for="lang in $store.i18n.available" :key="lang.code">
+                        <option :value="lang.code" :selected="lang.code === $store.i18n.locale" x-text="lang.name">
+                        </option>
+                      </template>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Webhooks -->
+              <div class="bg-th-surface rounded-xl p-6 shadow-soft">
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 class="font-headline font-semibold" x-text="$store.i18n.t('settings.webhooks')"></h3>
+                    <p class="text-xs text-th-text-dim mt-0.5" x-text="$store.i18n.t('settings.webhooks_desc')"></p>
+                  </div>
+                  <button @click="openAddWebhook()" class="btn-primary">
+                    <span class="material-symbols-outlined text-lg">add_circle</span>
+                    <span x-text="$store.i18n.t('settings.add_webhook')"></span>
+                  </button>
+                </div>
+                <div class="space-y-2">
+                  <template x-for="hook in webhooks" :key="hook.id">
+                    <div class="flex items-center gap-3 p-3 rounded-lg bg-th-surface-low">
+                      <span class="material-symbols-outlined text-th-text-dim text-lg">webhook</span>
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium truncate" x-text="hook.name"></p>
+                        <p class="text-xs text-th-text-dim truncate" x-text="hook.url"></p>
+                      </div>
                       <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                            :class="user.role === 'admin' ? 'bg-th-primary-bg text-th-primary' : 'bg-th-surface-high text-th-text-dim'"
-                            x-text="user.role === 'admin' ? $store.i18n.t('users.role_admin') : $store.i18n.t('users.role_viewer')"></span>
-                    </dd>
+                        :class="hook.enabled ? 'bg-th-success-bg text-th-success-text' : 'bg-th-surface-high text-th-text-dim'"
+                        x-text="hook.enabled ? 'Active' : 'Off'"></span>
+                      <button @click="testWebhook(hook.id)" class="btn-icon"><span
+                          class="material-symbols-outlined text-base">send</span></button>
+                      <button @click="openEditWebhook(hook)" class="btn-icon"><span
+                          class="material-symbols-outlined text-base">edit</span></button>
+                      <button @click="deleteWebhook(hook.id)" class="btn-icon hover:!text-th-error"><span
+                          class="material-symbols-outlined text-base">delete</span></button>
+                    </div>
+                  </template>
+                  <p x-show="webhooks.length === 0" class="text-sm text-th-text-dim text-center py-6"
+                    x-text="$store.i18n.t('users.no_webhooks')"></p>
+                </div>
+              </div>
+
+              <!-- Advanced (left) | Backup config + Danger (right, stacked) -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div class="bg-th-surface rounded-xl p-6 shadow-soft">
+                  <h3 class="font-headline font-semibold mb-1" x-text="$store.i18n.t('settings.advanced')"></h3>
+                  <p class="text-xs text-th-text-dim mb-4" x-text="$store.i18n.t('settings.advanced_desc')"></p>
+                  <div class="space-y-5">
+                    <div>
+                      <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.cooldown_period')"></label>
+                      <select x-model="settingsForm.cooldown_seconds" @change="saveSettings()" class="select">
+                        <option value="60">1 min</option>
+                        <option value="120">2 min</option>
+                        <option value="300">5 min</option>
+                        <option value="600">10 min</option>
+                        <option value="900">15 min</option>
+                        <option value="1800">30 min</option>
+                        <option value="3600">1 hour</option>
+                      </select>
+                      <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.cooldown_help')"></p>
+                    </div>
+                    <div>
+                      <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.http_timeout')"></label>
+                      <select x-model="settingsForm.http_timeout_seconds" @change="saveSettings()" class="select">
+                        <option value="5">5 s</option>
+                        <option value="10">10 s</option>
+                        <option value="15">15 s</option>
+                        <option value="30">30 s</option>
+                        <option value="60">1 min</option>
+                        <option value="120">2 min</option>
+                        <option value="300">5 min</option>
+                      </select>
+                      <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.http_timeout_help')"></p>
+                    </div>
+                    <div>
+                      <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.backup_retention')"></label>
+                      <select x-model="settingsForm.backup_retention" @change="saveSettings()" class="select">
+                        <option value="3">3</option>
+                        <option value="5">5</option>
+                        <option value="7">7</option>
+                        <option value="14">14</option>
+                        <option value="21">21</option>
+                        <option value="30">30</option>
+                        <option value="60">60</option>
+                        <option value="90">90</option>
+                      </select>
+                      <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('settings.backup_retention_help')">
+                      </p>
+                    </div>
+                    <div>
+                      <label class="label-sm block mb-1.5"
+                        x-text="$store.i18n.t('settings.log_archive_retention')"></label>
+                      <select x-model="settingsForm.log_archive_days" @change="saveSettings()" class="select">
+                        <option value="3">3</option>
+                        <option value="7">7</option>
+                        <option value="14">14</option>
+                        <option value="30">30</option>
+                        <option value="60">60</option>
+                        <option value="90">90</option>
+                        <option value="180">180</option>
+                        <option value="365">365</option>
+                      </select>
+                      <p class="text-xs text-th-text-dim mt-1"
+                        x-text="$store.i18n.t('settings.log_archive_retention_help')"></p>
+                    </div>
                   </div>
+                </div>
+
+                <div class="space-y-8">
+                  <div class="bg-th-surface rounded-xl p-6 shadow-soft">
+                    <h3 class="font-headline font-semibold mb-4" x-text="$store.i18n.t('settings.backup_config')"></h3>
+                    <div class="flex flex-wrap gap-3">
+                      <button @click="exportConfig()" class="btn-primary">
+                        <span class="material-symbols-outlined text-lg">download</span>
+                        <span x-text="$store.i18n.t('settings.export')"></span>
+                      </button>
+                      <input type="file" accept=".json" x-ref="importFile" class="hidden"
+                        @change="importConfigPickFile($event)">
+                      <button @click="$refs.importFile.click()" class="btn-primary">
+                        <span class="material-symbols-outlined text-lg">upload</span>
+                        <span x-text="$store.i18n.t('settings.import')"></span>
+                      </button>
+                    </div>
+                    <p class="text-xs text-th-text-dim mt-4 leading-relaxed"
+                      x-text="$store.i18n.t('settings.export_secrets_note')"></p>
+                  </div>
+
+                  <div class="bg-th-surface rounded-xl p-6 shadow-soft"
+                    style="box-shadow: inset 0 0 0 1px var(--c-error-bg)">
+                    <h3 class="font-headline font-semibold text-th-error" x-text="$store.i18n.t('settings.danger')">
+                    </h3>
+                    <p class="text-xs text-th-text-dim mt-0.5 mb-5" x-text="$store.i18n.t('settings.danger_desc')"></p>
+                    <div class="flex flex-wrap gap-3">
+                      <button @click="clearLogs()" class="btn-danger">
+                        <span class="material-symbols-outlined text-base">delete_sweep</span>
+                        <span x-text="$store.i18n.t('settings.clear_logs')"></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+
+          <!-- USERS (admin only) -->
+          <section x-show="$store.app.page === 'users'" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="flex items-start justify-between gap-4 mb-8">
+              <div>
+                <h1 class="font-headline font-bold text-2xl tracking-[-0.02em]" x-text="$store.i18n.t('users.title')">
+                </h1>
+                <p class="text-sm text-th-text-dim mt-1" x-text="$store.i18n.t('users.subtitle')"></p>
+              </div>
+              <button @click="openAddUser()" class="btn-primary shrink-0">
+                <span class="material-symbols-outlined text-lg">person_add</span>
+                <span x-text="$store.i18n.t('users.add')"></span>
+              </button>
+            </div>
+
+            <div class="bg-th-surface rounded-xl shadow-soft overflow-hidden">
+              <div class="ddns-layout-sm-desktop">
+                <div class="grid grid-cols-[1fr_6rem_10rem_5rem] gap-4 items-center px-5 py-3">
+                  <span class="label-sm" x-text="$store.i18n.t('users.username')"></span>
+                  <span class="label-sm" x-text="$store.i18n.t('users.role')"></span>
+                  <span class="label-sm" x-text="$store.i18n.t('users.created')"></span>
+                  <span></span>
+                </div>
+              </div>
+              <div class="p-3 space-y-3 sm:p-0 sm:space-y-0">
+                <!-- Alpine: <template x-for> must have exactly ONE root node — wrap mobile + desktop -->
+                <template x-for="user in sortedUsers" :key="user.id">
                   <div>
-                    <dt class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.created')"></dt>
-                    <dd class="mt-1 text-sm text-th-text-dim" x-text="new Date(user.created_at).toLocaleDateString()"></dd>
+                    <article
+                      class="ddns-layout-sm-mobile rounded-xl border border-th-outline/50 bg-th-surface-low p-4 shadow-soft space-y-3">
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                          <div
+                            class="w-10 h-10 rounded-full bg-th-primary-bg text-th-primary-text flex items-center justify-center text-sm font-bold uppercase shrink-0"
+                            x-text="user.username.charAt(0)"></div>
+                          <div class="min-w-0">
+                            <p class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.username')"></p>
+                            <p class="text-sm font-semibold truncate" x-text="user.username"></p>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <button type="button" @click="openEditUser(user)" class="btn-icon"
+                            :title="$store.i18n.t('common.edit')">
+                            <span class="material-symbols-outlined text-base">edit</span>
+                          </button>
+                          <button type="button" x-show="user.id !== 1" @click="deleteUser(user.id)"
+                            class="btn-icon hover:!text-th-error" :title="$store.i18n.t('common.delete')">
+                            <span class="material-symbols-outlined text-base">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                      <dl class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <dt class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.role')"></dt>
+                          <dd class="mt-1">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                              :class="user.role === 'admin' ? 'bg-th-primary-bg text-th-primary' : 'bg-th-surface-high text-th-text-dim'"
+                              x-text="user.role === 'admin' ? $store.i18n.t('users.role_admin') : $store.i18n.t('users.role_viewer')"></span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt class="text-xs text-th-text-dim" x-text="$store.i18n.t('users.created')"></dt>
+                          <dd class="mt-1 text-sm text-th-text-dim"
+                            x-text="new Date(user.created_at).toLocaleDateString()"></dd>
+                        </div>
+                      </dl>
+                    </article>
+                    <div class="ddns-layout-sm-desktop px-5 py-3.5 hover:bg-th-surface-low transition-colors">
+                      <div class="grid grid-cols-[1fr_6rem_10rem_5rem] gap-4 items-center">
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="w-8 h-8 rounded-full bg-th-primary-bg text-th-primary-text flex items-center justify-center text-xs font-bold uppercase shrink-0"
+                            x-text="user.username.charAt(0)"></div>
+                          <span class="text-sm font-medium truncate" x-text="user.username"></span>
+                        </div>
+                        <span
+                          class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full w-fit"
+                          :class="user.role === 'admin' ? 'bg-th-primary-bg text-th-primary' : 'bg-th-surface-high text-th-text-dim'"
+                          x-text="user.role === 'admin' ? $store.i18n.t('users.role_admin') : $store.i18n.t('users.role_viewer')"></span>
+                        <span class="text-xs text-th-text-dim"
+                          x-text="new Date(user.created_at).toLocaleDateString()"></span>
+                        <div class="flex items-center gap-1">
+                          <button type="button" @click="openEditUser(user)" class="btn-icon"><span
+                              class="material-symbols-outlined text-base">edit</span></button>
+                          <button type="button" x-show="user.id !== 1" @click="deleteUser(user.id)"
+                            class="btn-icon hover:!text-th-error"><span
+                              class="material-symbols-outlined text-base">delete</span></button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </dl>
-              </article>
-              <div class="ddns-layout-sm-desktop px-5 py-3.5 hover:bg-th-surface-low transition-colors">
-                <div class="grid grid-cols-[1fr_6rem_10rem_5rem] gap-4 items-center">
-                <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-full bg-th-primary-bg text-th-primary-text flex items-center justify-center text-xs font-bold uppercase shrink-0"
-                       x-text="user.username.charAt(0)"></div>
-                  <span class="text-sm font-medium truncate" x-text="user.username"></span>
-                </div>
-                <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full w-fit"
-                      :class="user.role === 'admin' ? 'bg-th-primary-bg text-th-primary' : 'bg-th-surface-high text-th-text-dim'"
-                      x-text="user.role === 'admin' ? $store.i18n.t('users.role_admin') : $store.i18n.t('users.role_viewer')"></span>
-                <span class="text-xs text-th-text-dim" x-text="new Date(user.created_at).toLocaleDateString()"></span>
-                <div class="flex items-center gap-1">
-                  <button type="button" @click="openEditUser(user)" class="btn-icon"><span class="material-symbols-outlined text-base">edit</span></button>
-                  <button type="button" x-show="user.id !== 1" @click="deleteUser(user.id)" class="btn-icon hover:!text-th-error"><span class="material-symbols-outlined text-base">delete</span></button>
-                </div>
-                </div>
+                </template>
               </div>
+              <div x-show="users.length === 0" class="text-center py-16 text-th-text-dim">
+                <span class="material-symbols-outlined text-4xl opacity-20 block mb-2">group</span>
+                <p class="text-sm">No users.</p>
               </div>
-            </template>
-          </div>
-          <div x-show="users.length === 0" class="text-center py-16 text-th-text-dim">
-            <span class="material-symbols-outlined text-4xl opacity-20 block mb-2">group</span>
-            <p class="text-sm">No users.</p>
-          </div>
+            </div>
+          </section>
+
         </div>
-      </section>
-
-      </div>
-    </main>
+      </main>
 
 
-    <!-- RECORD MODAL -->
-    <div x-show="showRecordModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:var(--c-overlay)"
-         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         @click.self="showRecordModal = false" @keydown.escape.window="showRecordModal = false">
-      <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-lg max-h-[85vh] overflow-y-auto p-6"
-           x-show="showRecordModal"
-           x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-           x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-           @click.stop>
-        <h3 class="font-headline font-semibold text-lg mb-5"
+      <!-- RECORD MODAL -->
+      <div x-show="showRecordModal" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style="background:var(--c-overlay)" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" @click.self="showRecordModal = false"
+        @keydown.escape.window="showRecordModal = false">
+        <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-lg max-h-[85vh] overflow-y-auto p-6"
+          x-show="showRecordModal" x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95" @click.stop>
+          <h3 class="font-headline font-semibold text-lg mb-5"
             x-text="editingRecord ? $store.i18n.t('hostnames.edit') : $store.i18n.t('hostnames.add')"></h3>
 
-        <div class="space-y-4">
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.select_provider')"></label>
-            <select x-model="recordForm.provider" @change="onProviderChange()" class="select" :disabled="!!editingRecord">
-              <option value="" x-text="'— ' + $store.i18n.t('hostnames.select_provider') + ' —'"></option>
-              <template x-for="p in providers" :key="p.name">
-                <option :value="p.name" x-text="p.label"></option>
-              </template>
-            </select>
-          </div>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.domain')"></label>
-            <input type="text" x-model="recordForm.domain" class="input" placeholder="example.com">
-          </div>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.owner')"></label>
-            <input type="text" x-model="recordForm.owner" class="input" placeholder="@">
-            <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('hostnames.owner_help')"></p>
-          </div>
-          <template x-for="field in selectedProviderFields" :key="field.name">
+          <div class="space-y-4">
             <div>
-              <label class="label-sm block mb-1.5" x-text="field.label"></label>
-              <template x-if="field.type === 'textarea'">
-                <textarea x-model="recordForm.config[field.name]" class="input" rows="3" :required="field.required" :placeholder="field.placeholder || ''"></textarea>
-              </template>
-              <template x-if="field.type === 'checkbox'">
-                <div class="flex items-center gap-2">
-                  <input type="checkbox" x-model="recordForm.config[field.name]" class="toggle">
-                </div>
-              </template>
-              <template x-if="field.type !== 'textarea' && field.type !== 'checkbox'">
-                <input
-                  :type="field.type === 'password' && !editingRecord ? 'text' : (field.type || 'text')"
-                  x-model="recordForm.config[field.name]"
-                  class="input"
-                  :required="field.type === 'password' ? (!editingRecord && field.required) : field.required"
-                  :placeholder="field.type === 'password' && editingRecord ? $store.i18n.t('hostnames.secret_unchanged_hint') : (field.placeholder || '')">
-              </template>
-              <p x-show="field.help" class="text-xs text-th-text-dim mt-1" x-text="field.help"></p>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.select_provider')"></label>
+              <select x-model="recordForm.provider" @change="onProviderChange()" class="select"
+                :disabled="!!editingRecord">
+                <option value="" x-text="'— ' + $store.i18n.t('hostnames.select_provider') + ' —'"></option>
+                <template x-for="p in providers" :key="p.name">
+                  <option :value="p.name" x-text="p.label"></option>
+                </template>
+              </select>
             </div>
-          </template>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.ip_version')"></label>
-            <select x-model="recordForm.ip_version" class="select">
-              <option value="ipv4">IPv4</option>
-              <option value="ipv6">IPv6</option>
-              <option value="dual">IPv4 + IPv6</option>
-            </select>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.domain')"></label>
+              <input type="text" x-model="recordForm.domain" class="input" placeholder="example.com">
+            </div>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.owner')"></label>
+              <input type="text" x-model="recordForm.owner" class="input" placeholder="@">
+              <p class="text-xs text-th-text-dim mt-1" x-text="$store.i18n.t('hostnames.owner_help')"></p>
+            </div>
+            <template x-for="field in selectedProviderFields" :key="field.name">
+              <div>
+                <label class="label-sm block mb-1.5" x-text="field.label"></label>
+                <template x-if="field.type === 'textarea'">
+                  <textarea x-model="recordForm.config[field.name]" class="input" rows="3" :required="field.required"
+                    :placeholder="field.placeholder || ''"></textarea>
+                </template>
+                <template x-if="field.type === 'checkbox'">
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" x-model="recordForm.config[field.name]" class="toggle">
+                  </div>
+                </template>
+                <template x-if="field.type !== 'textarea' && field.type !== 'checkbox'">
+                  <input :type="field.type === 'password' && !editingRecord ? 'text' : (field.type || 'text')"
+                    x-model="recordForm.config[field.name]" class="input"
+                    :required="field.type === 'password' ? (!editingRecord && field.required) : field.required"
+                    :placeholder="field.type === 'password' && editingRecord ? $store.i18n.t('hostnames.secret_unchanged_hint') : (field.placeholder || '')">
+                </template>
+                <p x-show="field.help" class="text-xs text-th-text-dim mt-1" x-text="field.help"></p>
+              </div>
+            </template>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('hostnames.ip_version')"></label>
+              <select x-model="recordForm.ip_version" class="select">
+                <option value="ipv4">IPv4</option>
+                <option value="ipv6">IPv6</option>
+                <option value="dual">IPv4 + IPv6</option>
+              </select>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm" x-text="$store.i18n.t('hostnames.enabled')"></span>
+              <input type="checkbox" x-model="recordForm.enabled" class="toggle">
+            </div>
           </div>
-          <div class="flex items-center justify-between">
-            <span class="text-sm" x-text="$store.i18n.t('hostnames.enabled')"></span>
-            <input type="checkbox" x-model="recordForm.enabled" class="toggle">
-          </div>
-        </div>
 
-        <div class="flex justify-end gap-3 mt-6 pt-4" style="border-top: 1px solid var(--c-ghost)">
-          <button @click="showRecordModal = false" class="btn-secondary" x-text="$store.i18n.t('hostnames.cancel')"></button>
-          <button @click="saveRecord()" class="btn-primary" x-text="$store.i18n.t('hostnames.save')"></button>
+          <div class="flex justify-end gap-3 mt-6 pt-4" style="border-top: 1px solid var(--c-ghost)">
+            <button @click="showRecordModal = false" class="btn-secondary"
+              x-text="$store.i18n.t('hostnames.cancel')"></button>
+            <button @click="saveRecord()" class="btn-primary" x-text="$store.i18n.t('hostnames.save')"></button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- IMPORT CONFIG MODAL -->
-    <div x-show="showImportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:var(--c-overlay)"
-         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         @click.self="cancelImportModal()" @keydown.escape.window="showImportModal && cancelImportModal()">
-      <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
-           x-show="showImportModal"
-           x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-           x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-           @click.stop>
-        <h3 class="font-headline font-semibold text-lg mb-3" x-text="$store.i18n.t('settings.import_modal_title')"></h3>
-        <p class="text-sm text-th-text-dim leading-relaxed whitespace-pre-line" x-text="$store.i18n.t('settings.import_modal_body')"></p>
-        <div class="flex flex-col gap-2 mt-6">
-          <button type="button" @click="executeConfigImport('replace')" class="btn-danger justify-center"
-                  x-text="$store.i18n.t('settings.import_replace')"></button>
-          <button type="button" @click="executeConfigImport('merge')" class="btn-primary justify-center"
-                  x-text="$store.i18n.t('settings.import_merge')"></button>
-          <button type="button" @click="cancelImportModal()" class="btn-secondary justify-center"
-                  x-text="$store.i18n.t('common.cancel')"></button>
+      <!-- IMPORT CONFIG MODAL -->
+      <div x-show="showImportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style="background:var(--c-overlay)" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" @click.self="cancelImportModal()"
+        @keydown.escape.window="showImportModal && cancelImportModal()">
+        <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
+          x-show="showImportModal" x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95" @click.stop>
+          <h3 class="font-headline font-semibold text-lg mb-3" x-text="$store.i18n.t('settings.import_modal_title')">
+          </h3>
+          <p class="text-sm text-th-text-dim leading-relaxed whitespace-pre-line"
+            x-text="$store.i18n.t('settings.import_modal_body')"></p>
+          <div class="flex flex-col gap-2 mt-6">
+            <button type="button" @click="executeConfigImport('replace')" class="btn-danger justify-center"
+              x-text="$store.i18n.t('settings.import_replace')"></button>
+            <button type="button" @click="executeConfigImport('merge')" class="btn-primary justify-center"
+              x-text="$store.i18n.t('settings.import_merge')"></button>
+            <button type="button" @click="cancelImportModal()" class="btn-secondary justify-center"
+              x-text="$store.i18n.t('common.cancel')"></button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- USER MODAL -->
-    <div x-show="showUserModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:var(--c-overlay)"
-         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         @click.self="showUserModal = false" @keydown.escape.window="showUserModal = false">
-      <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-sm p-6"
-           x-show="showUserModal"
-           x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-           x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-           @click.stop>
-        <h3 class="font-headline font-semibold text-lg mb-5"
+      <!-- USER MODAL -->
+      <div x-show="showUserModal" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style="background:var(--c-overlay)" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" @click.self="showUserModal = false"
+        @keydown.escape.window="showUserModal = false">
+        <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-sm p-6" x-show="showUserModal"
+          x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95"
+          x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" @click.stop>
+          <h3 class="font-headline font-semibold text-lg mb-5"
             x-text="editingUser ? $store.i18n.t('users.edit') : $store.i18n.t('users.add')"></h3>
-        <div class="space-y-4">
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('users.username')"></label>
-            <input type="text" x-model="userForm.username" class="input" required>
+          <div class="space-y-4">
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('users.username')"></label>
+              <input type="text" x-model="userForm.username" class="input" required>
+            </div>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('users.password')"></label>
+              <input type="password" x-model="userForm.password" class="input" :required="!editingUser"
+                :placeholder="editingUser ? $store.i18n.t('users.password_keep') : ''">
+            </div>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('users.role')"></label>
+              <select x-model="userForm.role" class="select">
+                <option value="admin" x-text="$store.i18n.t('users.role_admin')"></option>
+                <option value="viewer" x-text="$store.i18n.t('users.role_viewer')"></option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('users.password')"></label>
-            <input type="password" x-model="userForm.password" class="input" :required="!editingUser" :placeholder="editingUser ? $store.i18n.t('users.password_keep') : ''">
+          <div class="flex justify-end gap-3 mt-6 pt-4" style="border-top: 1px solid var(--c-ghost)">
+            <button @click="showUserModal = false" class="btn-secondary"
+              x-text="$store.i18n.t('common.cancel')"></button>
+            <button @click="saveUser()" class="btn-primary" x-text="$store.i18n.t('common.save')"></button>
           </div>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('users.role')"></label>
-            <select x-model="userForm.role" class="select">
-              <option value="admin" x-text="$store.i18n.t('users.role_admin')"></option>
-              <option value="viewer" x-text="$store.i18n.t('users.role_viewer')"></option>
-            </select>
-          </div>
-        </div>
-        <div class="flex justify-end gap-3 mt-6 pt-4" style="border-top: 1px solid var(--c-ghost)">
-          <button @click="showUserModal = false" class="btn-secondary" x-text="$store.i18n.t('common.cancel')"></button>
-          <button @click="saveUser()" class="btn-primary" x-text="$store.i18n.t('common.save')"></button>
         </div>
       </div>
-    </div>
 
-    <!-- WEBHOOK MODAL -->
-    <div x-show="showWebhookModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:var(--c-overlay)"
-         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         @click.self="showWebhookModal = false" @keydown.escape.window="showWebhookModal = false">
-      <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-md p-6"
-           x-show="showWebhookModal"
-           x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-           x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-           @click.stop>
-        <h3 class="font-headline font-semibold text-lg mb-5" x-text="$store.i18n.t('settings.add_webhook')"></h3>
-        <div class="space-y-4">
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_name')"></label>
-            <input type="text" x-model="webhookForm.name" class="input" placeholder="My Webhook">
+      <!-- WEBHOOK MODAL -->
+      <div x-show="showWebhookModal" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style="background:var(--c-overlay)" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" @click.self="showWebhookModal = false"
+        @keydown.escape.window="showWebhookModal = false">
+        <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-md p-6" x-show="showWebhookModal"
+          x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95"
+          x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" @click.stop>
+          <h3 class="font-headline font-semibold text-lg mb-5" x-text="$store.i18n.t('settings.add_webhook')"></h3>
+          <div class="space-y-4">
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_name')"></label>
+              <input type="text" x-model="webhookForm.name" class="input" placeholder="My Webhook">
+            </div>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_type')"></label>
+              <select x-model="webhookForm.type" class="select">
+                <option value="discord">Discord</option>
+                <option value="slack">Slack</option>
+                <option value="telegram">Telegram</option>
+                <option value="gotify">Gotify</option>
+                <option value="generic">Generic / Custom</option>
+              </select>
+            </div>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_url')"></label>
+              <input type="url" x-model="webhookForm.url" class="input" placeholder="https://...">
+            </div>
+            <div>
+              <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_events')"></label>
+              <input type="text" x-model="webhookForm.events" class="input" placeholder="ip_change,error">
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm" x-text="$store.i18n.t('hostnames.enabled')"></span>
+              <input type="checkbox" x-model="webhookForm.enabled" class="toggle">
+            </div>
           </div>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_type')"></label>
-            <select x-model="webhookForm.type" class="select">
-              <option value="discord">Discord</option>
-              <option value="slack">Slack</option>
-              <option value="telegram">Telegram</option>
-              <option value="gotify">Gotify</option>
-              <option value="generic">Generic / Custom</option>
-            </select>
+          <div class="flex justify-end gap-3 mt-6 pt-4" style="border-top: 1px solid var(--c-ghost)">
+            <button @click="showWebhookModal = false" class="btn-secondary"
+              x-text="$store.i18n.t('common.cancel')"></button>
+            <button @click="saveWebhook()" class="btn-primary" x-text="$store.i18n.t('common.save')"></button>
           </div>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_url')"></label>
-            <input type="url" x-model="webhookForm.url" class="input" placeholder="https://...">
-          </div>
-          <div>
-            <label class="label-sm block mb-1.5" x-text="$store.i18n.t('settings.webhook_events')"></label>
-            <input type="text" x-model="webhookForm.events" class="input" placeholder="ip_change,error">
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-sm" x-text="$store.i18n.t('hostnames.enabled')"></span>
-            <input type="checkbox" x-model="webhookForm.enabled" class="toggle">
-          </div>
-        </div>
-        <div class="flex justify-end gap-3 mt-6 pt-4" style="border-top: 1px solid var(--c-ghost)">
-          <button @click="showWebhookModal = false" class="btn-secondary" x-text="$store.i18n.t('common.cancel')"></button>
-          <button @click="saveWebhook()" class="btn-primary" x-text="$store.i18n.t('common.save')"></button>
         </div>
       </div>
-    </div>
 
 
-    <!-- TOAST NOTIFICATIONS -->
-    <div class="fixed bottom-5 right-5 z-[60] flex flex-col-reverse gap-2.5 pointer-events-none max-w-[26rem] w-full">
-      <template x-for="toast in $store.notify.toasts" :key="toast.id">
-        <div x-show="toast.visible"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 translate-x-6"
-             x-transition:enter-end="opacity-100 translate-x-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-x-0"
-             x-transition:leave-end="opacity-0 translate-x-6"
-             class="pointer-events-auto toast rounded-xl shadow-float px-4 py-3 flex items-start gap-2.5"
-             :class="{
+      <!-- TOAST NOTIFICATIONS -->
+      <div class="fixed bottom-5 right-5 z-[60] flex flex-col-reverse gap-2.5 pointer-events-none max-w-[26rem] w-full">
+        <template x-for="toast in $store.notify.toasts" :key="toast.id">
+          <div x-show="toast.visible" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-x-6" x-transition:enter-end="opacity-100 translate-x-0"
+            x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-x-0"
+            x-transition:leave-end="opacity-0 translate-x-6"
+            class="pointer-events-auto toast rounded-xl shadow-float px-4 py-3 flex items-start gap-2.5" :class="{
                'toast-success': toast.level === 'success',
                'toast-info': toast.level === 'info',
                'toast-warning': toast.level === 'warning',
                'toast-error': toast.level === 'error',
              }">
-          <span class="material-symbols-outlined text-lg shrink-0 mt-0.5"
-                x-text="({success:'check_circle',info:'info',warning:'warning',error:'error'})[toast.level] || 'info'"></span>
-          <span class="text-sm flex-1 leading-snug" x-text="toast.message"></span>
-          <button @click="$store.notify.dismiss(toast.id)" class="shrink-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer bg-transparent border-none p-0">
-            <span class="material-symbols-outlined text-base">close</span>
-          </button>
-        </div>
-      </template>
-    </div>
+            <span class="material-symbols-outlined text-lg shrink-0 mt-0.5"
+              x-text="({success:'check_circle',info:'info',warning:'warning',error:'error'})[toast.level] || 'info'"></span>
+            <span class="text-sm flex-1 leading-snug" x-text="toast.message"></span>
+            <button @click="$store.notify.dismiss(toast.id)"
+              class="shrink-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer bg-transparent border-none p-0">
+              <span class="material-symbols-outlined text-base">close</span>
+            </button>
+          </div>
+        </template>
+      </div>
 
-  </div>
-</template>
+    </div>
+  </template>
 
 </body>
+
 </html>

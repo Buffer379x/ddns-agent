@@ -121,7 +121,9 @@ function logFilterClass(level, active) {
 function formatLogTime(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const date = d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return date + ' ' + time;
 }
 
 function sortedByHostname(records) {
