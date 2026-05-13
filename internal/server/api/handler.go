@@ -641,20 +641,44 @@ func (h *Handler) DatabaseCheck(w http.ResponseWriter, r *http.Request) {
 
 // DatabaseRepair creates a backup and re-runs the schema migration so that
 // missing tables and indexes are recreated. Existing data is preserved.
+// If VACUUM INTO fails (e.g. the database is malformed), a raw file-copy
+// backup is attempted as a fallback before the repair proceeds.
 func (h *Handler) DatabaseRepair(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("database", "database repair started — creating backup first")
-	if err := h.backup.RunBackup(); err != nil {
-		h.log.Error("database", "backup before repair failed: %s", err.Error())
-		writeError(w, http.StatusInternalServerError, "backup failed: "+err.Error())
-		return
+
+	// --- Tier 1: clean VACUUM backup ---
+	backupErr := h.backup.RunBackup()
+	if backupErr != nil {
+		h.log.Warn("database", "VACUUM backup failed (%s) — attempting raw file copy as fallback", backupErr.Error())
+
+		// --- Tier 2: raw byte-copy (works even on malformed DBs) ---
+		dbPath := h.db.Path()
+		if dbPath == "" {
+			h.log.Error("database", "database path unknown; cannot create fallback backup")
+			writeError(w, http.StatusInternalServerError, "backup failed: "+backupErr.Error())
+			return
+		}
+		dest, rawErr := h.backup.RunRawCopyBackup(dbPath)
+		if rawErr != nil {
+			h.log.Error("database", "raw copy backup also failed: %s", rawErr.Error())
+			writeError(w, http.StatusInternalServerError,
+				"backup failed (VACUUM: "+backupErr.Error()+"; raw copy: "+rawErr.Error()+")")
+			return
+		}
+		h.log.Info("database", "raw copy backup saved to %s", dest)
+	} else {
+		h.log.Info("database", "VACUUM backup created successfully")
 	}
-	h.log.Info("database", "backup created successfully, running repair")
+
+	// --- Repair: re-run schema migrations ---
+	h.log.Info("database", "backup ready, running schema repair")
 	if err := h.db.Repair(); err != nil {
 		h.log.Error("database", "repair failed: %s", err.Error())
 		writeError(w, http.StatusInternalServerError, "repair failed: "+err.Error())
 		return
 	}
-	// Verify the database is clean after repair.
+
+	// --- Post-repair integrity check ---
 	issues, err := h.db.CheckIntegrity()
 	if err != nil {
 		h.log.Warn("database", "post-repair integrity check error: %s", err.Error())

@@ -12,6 +12,7 @@ import (
 
 type DB struct {
 	conn *sql.DB
+	path string
 }
 
 func New(dbPath string) (*DB, error) {
@@ -28,7 +29,7 @@ func New(dbPath string) (*DB, error) {
 	conn.SetMaxOpenConns(1)
 	conn.SetMaxIdleConns(1)
 
-	db := &DB{conn: conn}
+	db := &DB{conn: conn, path: dbPath}
 	if err := db.migrate(); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("running migrations: %w", err)
@@ -38,6 +39,9 @@ func New(dbPath string) (*DB, error) {
 
 func (db *DB) Close() error { return db.conn.Close() }
 func (db *DB) Ping() error  { return db.conn.Ping() }
+
+// Path returns the filesystem path of the database file.
+func (db *DB) Path() string { return db.path }
 
 // Vacuum creates a compacted copy of the database at dest using SQLite's
 // VACUUM INTO statement. dest must not contain a single-quote character.

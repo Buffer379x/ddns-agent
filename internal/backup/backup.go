@@ -3,6 +3,7 @@ package backup
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -96,6 +97,54 @@ func (s *Service) cleanOld() error {
 		backups = backups[1:]
 	}
 	return nil
+}
+
+// RunRawCopyBackup copies the database file byte-by-byte without involving
+// SQLite. This is the fallback path when the DB is too corrupted for
+// VACUUM INTO. WAL and SHM sidecar files are copied as well if they exist.
+// Returns the destination path of the backup file.
+func (s *Service) RunRawCopyBackup(srcPath string) (string, error) {
+	if err := os.MkdirAll(s.backupDir, 0755); err != nil {
+		return "", fmt.Errorf("creating backup dir: %w", err)
+	}
+
+	ts := time.Now().Format("2006-01-02_150405")
+	destName := fmt.Sprintf("ddns-agent-%s-raw.db", ts)
+	dest := filepath.Join(s.backupDir, destName)
+
+	if err := copyFile(srcPath, dest); err != nil {
+		return "", fmt.Errorf("raw copy: %w", err)
+	}
+
+	// Also copy WAL / SHM sidecars so the backup is self-consistent.
+	for _, suffix := range []string{"-wal", "-shm"} {
+		src := srcPath + suffix
+		if _, err := os.Stat(src); err == nil {
+			_ = copyFile(src, dest+suffix)
+		}
+	}
+
+	return dest, nil
+}
+
+// copyFile copies src to dst using buffered I/O.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
 }
 
 // --- Config Export / Import ---
