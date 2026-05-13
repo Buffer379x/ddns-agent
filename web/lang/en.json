@@ -152,5 +152,18 @@
   "common.close": "Close",
   "common.confirm": "Confirm",
   "common.loading": "Loading...",
-  "common.search": "Search..."
+  "common.search": "Search...",
+  "settings.db_maintenance": "Database Maintenance",
+  "settings.db_maintenance_desc": "Check the integrity of the database and repair structural issues if detected.",
+  "settings.db_check": "Check Database",
+  "settings.db_checking": "Checking...",
+  "settings.db_ok": "Database is healthy — no issues found.",
+  "settings.db_issues_found": "{n} issue(s) found. Create a backup and repair?",
+  "settings.db_repair_confirm_title": "Repair Database?",
+  "settings.db_repair_confirm_body": "A backup will be created automatically before any changes are made. The database content and your settings are preserved — only missing structural elements (tables, indexes) are recreated.",
+  "settings.db_repair_confirm": "Create Backup & Repair",
+  "settings.db_repairing": "Repairing...",
+  "notify.db_check_ok": "Database integrity check passed",
+  "notify.db_repaired": "Database repaired and verified",
+  "notify.db_repair_issues": "Repair completed but some issues remain"
 }

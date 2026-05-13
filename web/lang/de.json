@@ -152,5 +152,18 @@
   "common.close": "Schließen",
   "common.confirm": "Bestätigen",
   "common.loading": "Laden...",
-  "common.search": "Suchen..."
+  "common.search": "Suchen...",
+  "settings.db_maintenance": "Datenbankwartung",
+  "settings.db_maintenance_desc": "Integrität der Datenbank prüfen und strukturelle Probleme beheben, falls erkannt.",
+  "settings.db_check": "Datenbank prüfen",
+  "settings.db_checking": "Prüfe...",
+  "settings.db_ok": "Datenbank ist gesund — keine Probleme gefunden.",
+  "settings.db_issues_found": "{n} Problem(e) gefunden. Backup erstellen und reparieren?",
+  "settings.db_repair_confirm_title": "Datenbank reparieren?",
+  "settings.db_repair_confirm_body": "Vor jeglichen Änderungen wird automatisch ein Backup erstellt. Datenbankinhalte und Einstellungen bleiben erhalten — nur fehlende Strukturelemente (Tabellen, Indizes) werden neu angelegt.",
+  "settings.db_repair_confirm": "Backup erstellen & Reparieren",
+  "settings.db_repairing": "Repariere...",
+  "notify.db_check_ok": "Datenbankintegritätsprüfung bestanden",
+  "notify.db_repaired": "Datenbank repariert und verifiziert",
+  "notify.db_repair_issues": "Reparatur abgeschlossen, aber einige Probleme verbleiben"
 }

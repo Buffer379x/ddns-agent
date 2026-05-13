@@ -107,6 +107,9 @@ func NewRouter(
 
 		r.Get("/api/config/export", h.ExportConfig)
 		r.Post("/api/config/import", h.ImportConfig)
+
+		r.Post("/api/database/check", h.DatabaseCheck)
+		r.Post("/api/database/repair", h.DatabaseRepair)
 	})
 
 	// Serve embedded frontend with SPA fallback for client-side routing.

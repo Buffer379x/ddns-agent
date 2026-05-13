@@ -778,6 +778,18 @@
                       x-text="$store.i18n.t('settings.export_secrets_note')"></p>
                   </div>
 
+                  <!-- Database Maintenance -->
+                  <div class="bg-th-surface rounded-xl p-6 shadow-soft">
+                    <h3 class="font-headline font-semibold mb-1" x-text="$store.i18n.t('settings.db_maintenance')"></h3>
+                    <p class="text-xs text-th-text-dim mb-4" x-text="$store.i18n.t('settings.db_maintenance_desc')"></p>
+                    <button @click="dbCheckDatabase()" class="btn-secondary" :disabled="dbChecking || dbRepairing">
+                      <span class="material-symbols-outlined text-lg"
+                        :class="dbChecking ? 'animate-spin-slow' : ''"
+                        x-text="dbChecking ? 'progress_activity' : 'health_and_safety'"></span>
+                      <span x-text="dbChecking ? $store.i18n.t('settings.db_checking') : $store.i18n.t('settings.db_check')"></span>
+                    </button>
+                  </div>
+
                   <div class="bg-th-surface rounded-xl p-6 shadow-soft"
                     style="box-shadow: inset 0 0 0 1px var(--c-error-bg)">
                     <h3 class="font-headline font-semibold text-th-error" x-text="$store.i18n.t('settings.danger')">
@@ -1001,6 +1013,50 @@
             <button type="button" @click="executeConfigImport('merge')" class="btn-primary justify-center"
               x-text="$store.i18n.t('settings.import_merge')"></button>
             <button type="button" @click="cancelImportModal()" class="btn-secondary justify-center"
+              x-text="$store.i18n.t('common.cancel')"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DB REPAIR CONFIRM MODAL -->
+      <div x-show="showDbRepairModal" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style="background:var(--c-overlay)" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" @click.self="showDbRepairModal = false"
+        @keydown.escape.window="showDbRepairModal && (showDbRepairModal = false)">
+        <div class="bg-th-surface rounded-xl shadow-ambient w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
+          x-show="showDbRepairModal" x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95" @click.stop>
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-lg bg-th-warning-bg flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-th-warning-text">warning</span>
+            </div>
+            <h3 class="font-headline font-semibold text-lg" x-text="$store.i18n.t('settings.db_repair_confirm_title')"></h3>
+          </div>
+          <p class="text-sm text-th-text-dim leading-relaxed mb-4"
+            x-text="$store.i18n.t('settings.db_repair_confirm_body')"></p>
+          <!-- Issue list -->
+          <div class="bg-th-surface-low rounded-lg p-3 mb-5 max-h-40 overflow-y-auto" x-show="dbCheckIssues.length > 0">
+            <template x-for="(issue, idx) in dbCheckIssues" :key="idx">
+              <div class="flex items-start gap-2 py-0.5">
+                <span class="material-symbols-outlined text-th-error text-base shrink-0 mt-px">error</span>
+                <span class="text-xs font-mono break-all" x-text="issue"></span>
+              </div>
+            </template>
+          </div>
+          <div class="flex flex-col gap-2">
+            <button type="button" @click="dbRepairDatabase()" class="btn-primary justify-center"
+              :disabled="dbRepairing">
+              <span class="material-symbols-outlined text-lg"
+                :class="dbRepairing ? 'animate-spin-slow' : ''"
+                x-text="dbRepairing ? 'progress_activity' : 'build'"></span>
+              <span x-text="dbRepairing ? $store.i18n.t('settings.db_repairing') : $store.i18n.t('settings.db_repair_confirm')"></span>
+            </button>
+            <button type="button" @click="showDbRepairModal = false" class="btn-secondary justify-center"
+              :disabled="dbRepairing"
               x-text="$store.i18n.t('common.cancel')"></button>
           </div>
         </div>

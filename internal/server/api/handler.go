@@ -615,6 +615,62 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// --- Database Maintenance ---
+
+// DatabaseCheck runs SQLite integrity checks and returns any issues found.
+// The result is also written to the log file.
+func (h *Handler) DatabaseCheck(w http.ResponseWriter, r *http.Request) {
+	h.log.Info("database", "database integrity check started")
+	issues, err := h.db.CheckIntegrity()
+	if err != nil {
+		h.log.Error("database", "integrity check error: %s", err.Error())
+		writeError(w, http.StatusInternalServerError, "integrity check failed: "+err.Error())
+		return
+	}
+	if len(issues) == 0 {
+		h.log.Success("database", "integrity check passed — no issues found")
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "issues": []string{}})
+		return
+	}
+	for _, issue := range issues {
+		h.log.Warn("database", "integrity issue: %s", issue)
+	}
+	h.log.Warn("database", "integrity check completed — %d issue(s) found", len(issues))
+	writeJSON(w, http.StatusOK, map[string]any{"ok": false, "issues": issues})
+}
+
+// DatabaseRepair creates a backup and re-runs the schema migration so that
+// missing tables and indexes are recreated. Existing data is preserved.
+func (h *Handler) DatabaseRepair(w http.ResponseWriter, r *http.Request) {
+	h.log.Info("database", "database repair started — creating backup first")
+	if err := h.backup.RunBackup(); err != nil {
+		h.log.Error("database", "backup before repair failed: %s", err.Error())
+		writeError(w, http.StatusInternalServerError, "backup failed: "+err.Error())
+		return
+	}
+	h.log.Info("database", "backup created successfully, running repair")
+	if err := h.db.Repair(); err != nil {
+		h.log.Error("database", "repair failed: %s", err.Error())
+		writeError(w, http.StatusInternalServerError, "repair failed: "+err.Error())
+		return
+	}
+	// Verify the database is clean after repair.
+	issues, err := h.db.CheckIntegrity()
+	if err != nil {
+		h.log.Warn("database", "post-repair integrity check error: %s", err.Error())
+	} else if len(issues) == 0 {
+		h.log.Success("database", "repair completed — database integrity verified")
+	} else {
+		for _, issue := range issues {
+			h.log.Warn("database", "remaining issue after repair: %s", issue)
+		}
+		h.log.Warn("database", "repair completed with %d remaining issue(s)", len(issues))
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "remaining_issues": issues})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "remaining_issues": []string{}})
+}
+
 // --- SSE ---
 
 // SSEEvents streams live log and notification events to the client.

@@ -333,6 +333,11 @@ document.addEventListener('alpine:init', () => {
     editingWebhook: null,
     webhookForm: { name: '', type: 'discord', url: '', events: 'ip_change,error', enabled: true },
 
+    showDbRepairModal: false,
+    dbCheckIssues: [],
+    dbChecking: false,
+    dbRepairing: false,
+
     users: [],
     showUserModal: false,
     editingUser: null,
@@ -742,6 +747,40 @@ document.addEventListener('alpine:init', () => {
         Alpine.store('notify').send('success', Alpine.store('i18n').t('notify.user_deleted'));
         await this.loadUsers();
       } catch (_) {}
+    },
+
+    async dbCheckDatabase() {
+      const t = Alpine.store('i18n').t.bind(Alpine.store('i18n'));
+      this.dbChecking = true;
+      this.dbCheckIssues = [];
+      try {
+        const d = await api.post('/api/database/check', {});
+        if (!d) return;
+        if (d.ok) {
+          Alpine.store('notify').send('success', t('notify.db_check_ok'));
+        } else {
+          this.dbCheckIssues = d.issues || [];
+          this.showDbRepairModal = true;
+        }
+      } catch (_) {}
+      finally { this.dbChecking = false; }
+    },
+
+    async dbRepairDatabase() {
+      const t = Alpine.store('i18n').t.bind(Alpine.store('i18n'));
+      this.dbRepairing = true;
+      try {
+        const d = await api.post('/api/database/repair', {});
+        if (!d) return;
+        if (d.ok) {
+          Alpine.store('notify').send('success', t('notify.db_repaired'));
+        } else {
+          Alpine.store('notify').send('warning', t('notify.db_repair_issues'));
+        }
+        this.showDbRepairModal = false;
+        this.dbCheckIssues = [];
+      } catch (_) {}
+      finally { this.dbRepairing = false; }
     },
 
     signOut() {

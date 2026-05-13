@@ -56,6 +56,65 @@ func (db *DB) migrate() error {
 	return err
 }
 
+// CheckIntegrity runs SQLite's built-in integrity checks and returns a list
+// of problem descriptions. An empty slice means the database is healthy.
+func (db *DB) CheckIntegrity() ([]string, error) {
+	var issues []string
+
+	// Structural integrity check.
+	rows, err := db.conn.Query("PRAGMA integrity_check")
+	if err != nil {
+		return nil, fmt.Errorf("integrity_check: %w", err)
+	}
+	for rows.Next() {
+		var msg string
+		if err := rows.Scan(&msg); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if msg != "ok" {
+			issues = append(issues, msg)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	// Foreign-key consistency check.
+	fkRows, err := db.conn.Query("PRAGMA foreign_key_check")
+	if err != nil {
+		return nil, fmt.Errorf("foreign_key_check: %w", err)
+	}
+	defer fkRows.Close()
+	cols, _ := fkRows.Columns()
+	for fkRows.Next() {
+		vals := make([]any, len(cols))
+		ptrs := make([]any, len(cols))
+		for i := range vals {
+			ptrs[i] = &vals[i]
+		}
+		if err := fkRows.Scan(ptrs...); err != nil {
+			return nil, err
+		}
+		issues = append(issues, fmt.Sprintf("foreign_key_violation: table=%v rowid=%v parent=%v fkid=%v", vals[0], vals[1], vals[2], vals[3]))
+	}
+	if err := fkRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return issues, nil
+}
+
+// Repair re-runs the schema migration (all CREATE … IF NOT EXISTS / CREATE INDEX IF NOT EXISTS
+// statements) so that any missing tables or indexes are recreated. Existing data
+// is untouched. Call CheckIntegrity first to decide whether a repair is needed.
+func (db *DB) Repair() error {
+	return db.migrate()
+}
+
+
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
