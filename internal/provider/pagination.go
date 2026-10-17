@@ -61,10 +61,14 @@ func listPaged[T any](ctx context.Context, client *http.Client, initial *http.Re
 		if err = json.Unmarshal(encoded, &meta); err != nil {
 			return nil, err
 		}
-		next := meta.Links.Pages.Next
-		if next == "" {
-			next = meta.Meta.Links.Next
+		// Vultr returns an opaque cursor, while DigitalOcean returns a URL.
+		if cursor := meta.Meta.Links.Next; cursor != "" {
+			query := current.Query()
+			query.Set("cursor", cursor)
+			current.RawQuery = query.Encode()
+			continue
 		}
+		next := meta.Links.Pages.Next
 		if next != "" {
 			parsed, err := url.Parse(next)
 			if err != nil {
