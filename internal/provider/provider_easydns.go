@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,11 +13,11 @@ import (
 )
 
 type easydnsProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
-	key       string
+	domain string
+	owner  string
+
+	token string
+	key   string
 }
 
 func newEasyDNS(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*easydnsProvider, error) {
@@ -36,24 +35,12 @@ func newEasyDNS(data json.RawMessage, domain, owner string, ipVersion constants.
 		return nil, fmt.Errorf("easydns: key is required")
 	}
 	return &easydnsProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     s.Token,
-		key:       s.Key,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *easydnsProvider) String() string                  { return string(constants.EasyDNS) }
-func (p *easydnsProvider) Domain() string                  { return p.domain }
-func (p *easydnsProvider) Owner() string                   { return p.owner }
-func (p *easydnsProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *easydnsProvider) Proxied() bool                   { return false }
-func (p *easydnsProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		token: s.Token,
+		key:   s.Key,
+	}, nil
 }
 
 func (p *easydnsProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -63,7 +50,7 @@ func (p *easydnsProvider) Update(ctx context.Context, client *http.Client, ip ne
 		Path:   "/dyn/generic.php",
 	}
 	values := url.Values{}
-	values.Set("hostname", p.BuildDomainName())
+	values.Set("hostname", domainName(p.domain, p.owner))
 	values.Set("myip", ip.String())
 	values.Set("login", p.token)
 	values.Set("password", p.key)
@@ -79,14 +66,17 @@ func (p *easydnsProvider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
 
 	s := strings.TrimSpace(string(b))
-	if strings.Contains(s, "NOERROR") || strings.Contains(s, "nochg") {
+	if strings.Contains(s, "NOERROR") || strings.HasPrefix(s, "nochg ") || s == "nochg" {
 		return ip, nil
 	}
 	return netip.Addr{}, fmt.Errorf("easydns update failed: %s", s)

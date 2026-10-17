@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,12 +13,12 @@ import (
 )
 
 type spdynProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
-	token     string
+	domain string
+	owner  string
+
+	username string
+	password string
+	token    string
 }
 
 func newSpdyn(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -35,26 +34,13 @@ func newSpdyn(data json.RawMessage, domain, owner string, ipVersion constants.IP
 		return nil, fmt.Errorf("spdyn: either token or username+password must be provided")
 	}
 	return &spdynProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		password:  extra.Password,
-		token:     extra.Token,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		password: extra.Password,
+		token:    extra.Token,
 	}, nil
-}
-
-func (p *spdynProvider) String() string                    { return string(constants.Spdyn) }
-func (p *spdynProvider) Domain() string                    { return p.domain }
-func (p *spdynProvider) Owner() string                     { return p.owner }
-func (p *spdynProvider) IPVersion() constants.IPVersion     { return p.ipVersion }
-func (p *spdynProvider) Proxied() bool                     { return false }
-
-func (p *spdynProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *spdynProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -64,7 +50,7 @@ func (p *spdynProvider) Update(ctx context.Context, client *http.Client, ip neti
 		Path:   "/nic/update",
 	}
 
-	hostname := p.BuildDomainName()
+	hostname := domainName(p.domain, p.owner)
 	q := url.Values{}
 	q.Set("hostname", hostname)
 	q.Set("myip", ip.String())
@@ -87,8 +73,11 @@ func (p *spdynProvider) Update(ctx context.Context, client *http.Client, ip neti
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
@@ -99,7 +88,7 @@ func (p *spdynProvider) Update(ctx context.Context, client *http.Client, ip neti
 	}
 
 	switch {
-	case strings.HasPrefix(s, "good"), strings.HasPrefix(s, "nochg"):
+	case responseWord(s, "good"), responseWord(s, "nochg"):
 		return ip, nil
 	case s == "badauth" || s == "!yours":
 		return netip.Addr{}, fmt.Errorf("spdyn: authentication failed")

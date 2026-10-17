@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -13,10 +12,10 @@ import (
 )
 
 type customProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	url       string
+	domain string
+	owner  string
+
+	url string
 }
 
 func newCustom(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -30,24 +29,11 @@ func newCustom(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("custom: url is required")
 	}
 	return &customProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		url:       extra.URL,
+		domain: domain,
+		owner:  owner,
+
+		url: extra.URL,
 	}, nil
-}
-
-func (p *customProvider) String() string                    { return string(constants.Custom) }
-func (p *customProvider) Domain() string                    { return p.domain }
-func (p *customProvider) Owner() string                     { return p.owner }
-func (p *customProvider) IPVersion() constants.IPVersion     { return p.ipVersion }
-func (p *customProvider) Proxied() bool                     { return false }
-
-func (p *customProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *customProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -78,8 +64,11 @@ func (p *customProvider) Update(ctx context.Context, client *http.Client, ip net
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}

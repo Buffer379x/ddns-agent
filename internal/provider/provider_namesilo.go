@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 )
 
 type namesiloProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	key       string
+	domain string
+	owner  string
+
+	key string
 }
 
 func newNameSilo(data json.RawMessage, domain, owner string) (Provider, error) {
@@ -31,24 +30,11 @@ func newNameSilo(data json.RawMessage, domain, owner string) (Provider, error) {
 		return nil, fmt.Errorf("namesilo: key is required")
 	}
 	return &namesiloProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: constants.IPv4,
-		key:       extra.Key,
+		domain: domain,
+		owner:  owner,
+
+		key: extra.Key,
 	}, nil
-}
-
-func (p *namesiloProvider) String() string                    { return string(constants.NameSilo) }
-func (p *namesiloProvider) Domain() string                    { return p.domain }
-func (p *namesiloProvider) Owner() string                     { return p.owner }
-func (p *namesiloProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *namesiloProvider) Proxied() bool                     { return false }
-
-func (p *namesiloProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 type namesiloXMLReply struct {
@@ -97,7 +83,7 @@ func (p *namesiloProvider) getRecordID(ctx context.Context, client *http.Client,
 	}
 	defer resp.Body.Close()
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("reading response: %w", err)
 	}
@@ -110,7 +96,7 @@ func (p *namesiloProvider) getRecordID(ctx context.Context, client *http.Client,
 		return "", fmt.Errorf("namesilo list: code %d: %s", reply.Reply.Code, reply.Reply.Detail)
 	}
 
-	fqdn := p.BuildDomainName()
+	fqdn := domainName(p.domain, p.owner)
 	for _, rec := range reply.Reply.ResourceRecord {
 		if rec.Host == fqdn && rec.Type == recordType {
 			return rec.RecordID, nil
@@ -159,8 +145,11 @@ func (p *namesiloProvider) Update(ctx context.Context, client *http.Client, ip n
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}

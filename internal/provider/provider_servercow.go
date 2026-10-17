@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,11 +14,11 @@ import (
 )
 
 type servercowProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
+	domain string
+	owner  string
+
+	username string
+	password string
 }
 
 func newServercow(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -35,25 +36,12 @@ func newServercow(data json.RawMessage, domain, owner string, ipVersion constant
 		return nil, fmt.Errorf("servercow: password is required")
 	}
 	return &servercowProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		password:  extra.Password,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		password: extra.Password,
 	}, nil
-}
-
-func (p *servercowProvider) String() string                    { return string(constants.Servercow) }
-func (p *servercowProvider) Domain() string                    { return p.domain }
-func (p *servercowProvider) Owner() string                     { return p.owner }
-func (p *servercowProvider) IPVersion() constants.IPVersion     { return p.ipVersion }
-func (p *servercowProvider) Proxied() bool                     { return false }
-
-func (p *servercowProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *servercowProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -103,12 +91,15 @@ func (p *servercowProvider) Update(ctx context.Context, client *http.Client, ip 
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	var result struct {
 		Message string `json:"message"`
 		Error   string `json:"error"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&result); err != nil {
 		return netip.Addr{}, fmt.Errorf("decoding response: %w", err)
 	}
 

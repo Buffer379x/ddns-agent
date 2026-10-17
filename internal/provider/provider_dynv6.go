@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 )
 
 type dynv6Provider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newDynV6(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*dynv6Provider, error) {
@@ -31,23 +30,11 @@ func newDynV6(data json.RawMessage, domain, owner string, ipVersion constants.IP
 		return nil, fmt.Errorf("dynv6: token is required")
 	}
 	return &dynv6Provider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     s.Token,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *dynv6Provider) String() string                  { return string(constants.DynV6) }
-func (p *dynv6Provider) Domain() string                  { return p.domain }
-func (p *dynv6Provider) Owner() string                   { return p.owner }
-func (p *dynv6Provider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *dynv6Provider) Proxied() bool                   { return false }
-func (p *dynv6Provider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		token: s.Token,
+	}, nil
 }
 
 func (p *dynv6Provider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -57,7 +44,7 @@ func (p *dynv6Provider) Update(ctx context.Context, client *http.Client, ip neti
 		Path:   "/api/update",
 	}
 	values := url.Values{}
-	values.Set("hostname", p.BuildDomainName())
+	values.Set("hostname", domainName(p.domain, p.owner))
 	values.Set("token", p.token)
 	if ip.Is6() {
 		values.Set("ipv6", ip.String())
@@ -76,14 +63,17 @@ func (p *dynv6Provider) Update(ctx context.Context, client *http.Client, ip neti
 		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
 
 	s := strings.TrimSpace(string(b))
-	if strings.Contains(s, "good") || strings.Contains(s, "nochg") || strings.HasPrefix(s, "addresses updated") {
+	if strings.HasPrefix(s, "good ") || s == "good" || strings.HasPrefix(s, "nochg ") || s == "nochg" || strings.HasPrefix(s, "addresses updated") {
 		return ip, nil
 	}
 	return netip.Addr{}, fmt.Errorf("dynv6 update failed: %s", s)

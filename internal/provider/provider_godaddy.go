@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,11 +14,11 @@ import (
 )
 
 type godaddyProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	key       string
-	secret    string
+	domain string
+	owner  string
+
+	key    string
+	secret string
 }
 
 func newGoDaddy(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -32,25 +33,12 @@ func newGoDaddy(data json.RawMessage, domain, owner string, ipVersion constants.
 		return nil, fmt.Errorf("godaddy: key and secret are required")
 	}
 	return &godaddyProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		key:       extra.Key,
-		secret:    extra.Secret,
+		domain: domain,
+		owner:  owner,
+
+		key:    extra.Key,
+		secret: extra.Secret,
 	}, nil
-}
-
-func (p *godaddyProvider) String() string                  { return string(constants.GoDaddy) }
-func (p *godaddyProvider) Domain() string                  { return p.domain }
-func (p *godaddyProvider) Owner() string                   { return p.owner }
-func (p *godaddyProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *godaddyProvider) Proxied() bool                   { return false }
-
-func (p *godaddyProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *godaddyProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -94,13 +82,16 @@ func (p *godaddyProvider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		var apiErr struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
 		}
-		_ = json.NewDecoder(resp.Body).Decode(&apiErr)
+		_ = json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&apiErr)
 		return netip.Addr{}, fmt.Errorf("godaddy: status %d: %s - %s", resp.StatusCode, apiErr.Code, apiErr.Message)
 	}
 

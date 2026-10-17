@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -21,16 +22,16 @@ import (
 )
 
 type aliyunProvider struct {
-	domain       string
-	owner        string
-	ipVersion    constants.IPVersion
+	domain string
+	owner  string
+
 	accessKeyID  string
 	accessSecret string
 }
 
 func newAliyun(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
 	var extra struct {
-		AccessKeyID string `json:"access_key_id"`
+		AccessKeyID  string `json:"access_key_id"`
 		AccessSecret string `json:"access_secret"`
 	}
 	if err := json.Unmarshal(data, &extra); err != nil {
@@ -43,25 +44,12 @@ func newAliyun(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("aliyun: access_secret is required")
 	}
 	return &aliyunProvider{
-		domain:       domain,
-		owner:        owner,
-		ipVersion:    ipVersion,
+		domain: domain,
+		owner:  owner,
+
 		accessKeyID:  extra.AccessKeyID,
 		accessSecret: extra.AccessSecret,
 	}, nil
-}
-
-func (p *aliyunProvider) String() string                    { return string(constants.Aliyun) }
-func (p *aliyunProvider) Domain() string                    { return p.domain }
-func (p *aliyunProvider) Owner() string                     { return p.owner }
-func (p *aliyunProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *aliyunProvider) Proxied() bool                     { return false }
-
-func (p *aliyunProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *aliyunProvider) newURLValues() url.Values {
@@ -103,13 +91,15 @@ func (p *aliyunProvider) getRecordID(ctx context.Context, client *http.Client, r
 	values.Set("Action", "DescribeDomainRecords")
 	values.Set("DomainName", p.domain)
 	values.Set("RRKeyWord", p.owner)
-	values.Set("Type", recordType)
+	values.Set("TypeKeyWord", recordType)
+	values.Set("SearchMode", "EXACT")
+	values.Set("PageSize", "500")
 
 	p.sign(http.MethodGet, values)
 
 	u := url.URL{
 		Scheme:   "https",
-		Host:     "dns.aliyuncs.com",
+		Host:     "alidns.aliyuncs.com",
 		RawQuery: values.Encode(),
 	}
 
@@ -129,19 +119,28 @@ func (p *aliyunProvider) getRecordID(ctx context.Context, client *http.Client, r
 	}
 
 	var body struct {
+		Code          string `json:"Code"`
+		Message       string `json:"Message"`
 		DomainRecords struct {
 			Record []struct {
 				RecordID string `json:"RecordId"`
+				RR       string `json:"RR"`
+				Type     string `json:"Type"`
 			} `json:"Record"`
 		} `json:"DomainRecords"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 		return "", fmt.Errorf("decoding response: %w", err)
 	}
 	if len(body.DomainRecords.Record) == 0 {
 		return "", fmt.Errorf("aliyun: no %s record found for %s", recordType, p.owner)
 	}
-	return body.DomainRecords.Record[0].RecordID, nil
+	for _, r := range body.DomainRecords.Record {
+		if r.RR == p.owner && r.Type == recordType {
+			return r.RecordID, nil
+		}
+	}
+	return "", fmt.Errorf("aliyun: exact record not found")
 }
 
 func (p *aliyunProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -159,7 +158,9 @@ func (p *aliyunProvider) Update(ctx context.Context, client *http.Client, ip net
 	values.Set("Action", "UpdateDomainRecord")
 	values.Set("RecordId", recordID)
 	values.Set("RR", p.owner)
-	values.Set("Type", recordType)
+	values.Set("TypeKeyWord", recordType)
+	values.Set("SearchMode", "EXACT")
+	values.Set("PageSize", "500")
 	values.Set("Value", ip.String())
 
 	p.sign(http.MethodGet, values)
@@ -180,10 +181,24 @@ func (p *aliyunProvider) Update(ctx context.Context, client *http.Client, ip net
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return netip.Addr{}, fmt.Errorf("aliyun update: status %d", resp.StatusCode)
 	}
 
+	var result struct {
+		Code     string `json:"Code"`
+		Message  string `json:"Message"`
+		RecordID string `json:"RecordId"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&result); err != nil {
+		return netip.Addr{}, err
+	}
+	if result.Code != "" || result.RecordID == "" {
+		return netip.Addr{}, fmt.Errorf("aliyun: %s %s", result.Code, result.Message)
+	}
 	return ip, nil
 }

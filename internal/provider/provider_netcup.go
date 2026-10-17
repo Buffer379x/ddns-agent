@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 
@@ -12,9 +13,9 @@ import (
 )
 
 type netcupProvider struct {
-	domain         string
-	owner          string
-	ipVersion      constants.IPVersion
+	domain string
+	owner  string
+
 	customerNumber string
 	apiKey         string
 	apiPassword    string
@@ -39,26 +40,13 @@ func newNetcup(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("netcup: api_password is required")
 	}
 	return &netcupProvider{
-		domain:         domain,
-		owner:          owner,
-		ipVersion:      ipVersion,
+		domain: domain,
+		owner:  owner,
+
 		customerNumber: extra.CustomerNumber,
 		apiKey:         extra.APIKey,
 		apiPassword:    extra.APIPassword,
 	}, nil
-}
-
-func (p *netcupProvider) String() string                    { return string(constants.Netcup) }
-func (p *netcupProvider) Domain() string                    { return p.domain }
-func (p *netcupProvider) Owner() string                     { return p.owner }
-func (p *netcupProvider) IPVersion() constants.IPVersion     { return p.ipVersion }
-func (p *netcupProvider) Proxied() bool                     { return false }
-
-func (p *netcupProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 const netcupEndpoint = "https://ccp.netcup.net/run/webservice/servers/endpoint.php?JSON"
@@ -100,7 +88,7 @@ func (p *netcupProvider) netcupRequest(ctx context.Context, client *http.Client,
 		ShortMessage string          `json:"shortmessage"`
 		ResponseData json.RawMessage `json:"responsedata"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&common); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&common); err != nil {
 		return fmt.Errorf("decoding response: %w", err)
 	}
 	if common.Status == "error" {

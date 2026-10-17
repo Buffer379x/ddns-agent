@@ -1,0 +1,47 @@
+name: Quality
+on:
+  pull_request:
+  push:
+    branches: [main, beta]
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.2'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Frontend checks and compiled assets
+        working-directory: web
+        run: |
+          npm ci --ignore-scripts
+          npx prettier --check src build.mjs index.html package.json
+          npm test
+          npm run build
+          npm audit --audit-level=moderate
+      - name: Go regression tests and race detector
+        run: |
+          test -z "$(gofmt -l cmd internal web/embed.go)"
+          go test -race ./...
+          go vet ./...
+      - name: Static analysis and reachable vulnerabilities
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          staticcheck ./...
+          govulncheck ./...
+      - name: Container build and lifecycle
+        run: |
+          docker build -t ddns-agent:test .
+          sh scripts/container-smoke.sh ddns-agent:test

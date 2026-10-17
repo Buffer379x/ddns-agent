@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,15 +12,27 @@ import (
 
 // renameLog moves src to dst; if rename fails (e.g. dst exists on some FS), remove dst and retry once.
 func renameLog(src, dst string) error {
-	err := os.Rename(src, dst)
-	if err == nil {
-		return nil
-	}
-	if os.IsNotExist(err) {
+	in, err := os.Open(src)
+	if err != nil {
 		return err
 	}
-	_ = os.Remove(dst)
-	return os.Rename(src, dst)
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(out, in)
+	if err == nil {
+		err = out.Sync()
+	}
+	closeErr := out.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return os.Remove(src)
 }
 
 // FileRotatingWriter appends to agent.log under logDir. When the calendar day in loc
@@ -121,7 +134,7 @@ func (w *FileRotatingWriter) rotateForNewDay(today string) error {
 }
 
 func (w *FileRotatingWriter) openAppend() error {
-	f, err := os.OpenFile(w.activePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(w.activePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}

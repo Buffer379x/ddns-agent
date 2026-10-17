@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 )
 
 type heProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	password  string
+	domain string
+	owner  string
+
+	password string
 }
 
 func newHE(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*heProvider, error) {
@@ -31,27 +30,15 @@ func newHE(data json.RawMessage, domain, owner string, ipVersion constants.IPVer
 		return nil, fmt.Errorf("he: password is required")
 	}
 	return &heProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		password:  s.Password,
+		domain: domain,
+		owner:  owner,
+
+		password: s.Password,
 	}, nil
 }
 
-func (p *heProvider) String() string                  { return string(constants.HE) }
-func (p *heProvider) Domain() string                  { return p.domain }
-func (p *heProvider) Owner() string                   { return p.owner }
-func (p *heProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *heProvider) Proxied() bool                   { return false }
-func (p *heProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
-}
-
 func (p *heProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
-	fqdn := p.BuildDomainName()
+	fqdn := domainName(p.domain, p.owner)
 
 	form := url.Values{}
 	form.Set("hostname", fqdn)
@@ -70,14 +57,17 @@ func (p *heProvider) Update(ctx context.Context, client *http.Client, ip netip.A
 		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
 
 	s := strings.TrimSpace(string(b))
-	if strings.Contains(s, "good") || strings.Contains(s, "nochg") {
+	if strings.HasPrefix(s, "good ") || s == "good" || strings.HasPrefix(s, "nochg ") || s == "nochg" {
 		return ip, nil
 	}
 	if s == "badauth" {

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"ddns-agent/internal/netutil"
 )
 
 // Fetcher retrieves the machine's public IP address from well-known external services
@@ -81,6 +83,8 @@ func (f *Fetcher) SetHTTPTimeout(d time.Duration) {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.client.CloseIdleConnections()
+	f.ipv6Client.CloseIdleConnections()
 	f.client = &http.Client{
 		Timeout: d,
 		Transport: &http.Transport{
@@ -128,6 +132,9 @@ func (f *Fetcher) fetchWithRetryClient(ctx context.Context, providers []provider
 		p := providers[idx%uint64(len(providers))]
 
 		ip, err := f.fetchFromClient(ctx, p.url, client)
+		if err == nil && ((strings.Contains(providers[0].name, "6") && (!ip.Is6() || ip.Is4In6())) || (!strings.Contains(providers[0].name, "6") && !ip.Is4())) {
+			err = fmt.Errorf("unexpected address family")
+		}
 		if err == nil {
 			return ip, nil
 		}
@@ -151,7 +158,7 @@ func (f *Fetcher) fetchFromClient(ctx context.Context, url string, client *http.
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return netip.Addr{}, err
+		return netip.Addr{}, fmt.Errorf("IP request failed: %s", netutil.SafeError(err))
 	}
 	defer resp.Body.Close()
 

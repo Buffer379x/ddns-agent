@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 )
 
 type freednsProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newFreeDNS(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*freednsProvider, error) {
@@ -31,23 +30,11 @@ func newFreeDNS(data json.RawMessage, domain, owner string, ipVersion constants.
 		return nil, fmt.Errorf("freedns: token is required")
 	}
 	return &freednsProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     s.Token,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *freednsProvider) String() string                  { return string(constants.FreeDNS) }
-func (p *freednsProvider) Domain() string                  { return p.domain }
-func (p *freednsProvider) Owner() string                   { return p.owner }
-func (p *freednsProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *freednsProvider) Proxied() bool                   { return false }
-func (p *freednsProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		token: s.Token,
+	}, nil
 }
 
 func (p *freednsProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -68,8 +55,11 @@ func (p *freednsProvider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,12 +14,12 @@ import (
 )
 
 type dondominioProv struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
-	name      string
+	domain string
+	owner  string
+
+	username string
+	password string
+	name     string
 }
 
 func newDonDominio(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -37,26 +38,13 @@ func newDonDominio(data json.RawMessage, domain, owner string, ipVersion constan
 		return nil, fmt.Errorf("dondominio: password is required")
 	}
 	return &dondominioProv{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		password:  extra.Password,
-		name:      extra.Name,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		password: extra.Password,
+		name:     extra.Name,
 	}, nil
-}
-
-func (p *dondominioProv) String() string                    { return string(constants.DonDominio) }
-func (p *dondominioProv) Domain() string                    { return p.domain }
-func (p *dondominioProv) Owner() string                     { return p.owner }
-func (p *dondominioProv) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *dondominioProv) Proxied() bool                     { return false }
-
-func (p *dondominioProv) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *dondominioProv) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -69,7 +57,7 @@ func (p *dondominioProv) Update(ctx context.Context, client *http.Client, ip net
 	form := url.Values{}
 	form.Set("user", p.username)
 	form.Set("password", p.password)
-	form.Set("host", p.BuildDomainName())
+	form.Set("host", domainName(p.domain, p.owner))
 	if ip.Is6() {
 		form.Set("ip6", ip.String())
 	} else {
@@ -90,6 +78,9 @@ func (p *dondominioProv) Update(ctx context.Context, client *http.Client, ip net
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return netip.Addr{}, fmt.Errorf("dondominio: status %d", resp.StatusCode)
@@ -99,7 +90,7 @@ func (p *dondominioProv) Update(ctx context.Context, client *http.Client, ip net
 		Success  bool   `json:"success"`
 		ErrorMsg string `json:"errorMsg"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 		return netip.Addr{}, fmt.Errorf("decoding response: %w", err)
 	}
 	if !body.Success {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 )
 
 type dnspodProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newDNSPod(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*dnspodProvider, error) {
@@ -31,23 +30,11 @@ func newDNSPod(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("dnspod: token is required")
 	}
 	return &dnspodProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     s.Token,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *dnspodProvider) String() string                  { return string(constants.DNSPod) }
-func (p *dnspodProvider) Domain() string                  { return p.domain }
-func (p *dnspodProvider) Owner() string                   { return p.owner }
-func (p *dnspodProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *dnspodProvider) Proxied() bool                   { return false }
-func (p *dnspodProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		token: s.Token,
+	}, nil
 }
 
 func (p *dnspodProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -83,8 +70,11 @@ func (p *dnspodProvider) dnspodPost(ctx context.Context, client *http.Client, ap
 		return nil, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return nil, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}

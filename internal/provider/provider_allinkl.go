@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,11 +13,11 @@ import (
 )
 
 type allinklProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
+	domain string
+	owner  string
+
+	username string
+	password string
 }
 
 func newAllInkl(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -36,25 +35,12 @@ func newAllInkl(data json.RawMessage, domain, owner string, ipVersion constants.
 		return nil, fmt.Errorf("allinkl: password is required")
 	}
 	return &allinklProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		password:  extra.Password,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		password: extra.Password,
 	}, nil
-}
-
-func (p *allinklProvider) String() string                    { return string(constants.AllInkl) }
-func (p *allinklProvider) Domain() string                    { return p.domain }
-func (p *allinklProvider) Owner() string                     { return p.owner }
-func (p *allinklProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *allinklProvider) Proxied() bool                     { return false }
-
-func (p *allinklProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *allinklProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -77,8 +63,11 @@ func (p *allinklProvider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}

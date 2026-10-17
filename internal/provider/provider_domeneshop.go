@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,11 +14,11 @@ import (
 )
 
 type domeneshopProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
-	secret    string
+	domain string
+	owner  string
+
+	token  string
+	secret string
 }
 
 func newDomeneshop(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -35,25 +36,12 @@ func newDomeneshop(data json.RawMessage, domain, owner string, ipVersion constan
 		return nil, fmt.Errorf("domeneshop: secret is required")
 	}
 	return &domeneshopProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     extra.Token,
-		secret:    extra.Secret,
+		domain: domain,
+		owner:  owner,
+
+		token:  extra.Token,
+		secret: extra.Secret,
 	}, nil
-}
-
-func (p *domeneshopProvider) String() string                    { return string(constants.Domeneshop) }
-func (p *domeneshopProvider) Domain() string                    { return p.domain }
-func (p *domeneshopProvider) Owner() string                     { return p.owner }
-func (p *domeneshopProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *domeneshopProvider) Proxied() bool                     { return false }
-
-func (p *domeneshopProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *domeneshopProvider) getDomainAndRecordID(ctx context.Context, client *http.Client, recordType string) (int, int, error) {
@@ -78,7 +66,7 @@ func (p *domeneshopProvider) getDomainAndRecordID(ctx context.Context, client *h
 		ID     int    `json:"id"`
 		Domain string `json:"domain"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&domains); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&domains); err != nil {
 		return 0, 0, fmt.Errorf("decoding domains: %w", err)
 	}
 
@@ -122,7 +110,7 @@ func (p *domeneshopProvider) getDomainAndRecordID(ctx context.Context, client *h
 
 	host := p.owner
 	if host == "@" {
-		host = ""
+		host = "@"
 	}
 	for _, rec := range records {
 		if rec.Host == host && rec.Type == recordType {
@@ -151,7 +139,7 @@ func (p *domeneshopProvider) Update(ctx context.Context, client *http.Client, ip
 
 	host := p.owner
 	if host == "@" {
-		host = ""
+		host = "@"
 	}
 	payload := struct {
 		Host string `json:"host"`
@@ -180,6 +168,9 @@ func (p *domeneshopProvider) Update(ctx context.Context, client *http.Client, ip
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return netip.Addr{}, fmt.Errorf("domeneshop update: status %d", resp.StatusCode)

@@ -1,22 +1,22 @@
 package provider
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
+	"net/url"
+	"strings"
 
 	"ddns-agent/internal/provider/constants"
 )
 
 type njallaProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	key       string
+	domain string
+	owner  string
+
+	key string
 }
 
 func newNjalla(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*njallaProvider, error) {
@@ -30,85 +30,38 @@ func newNjalla(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("njalla: key is required")
 	}
 	return &njallaProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		key:       s.Key,
+		domain: domain,
+		owner:  owner,
+
+		key: s.Key,
 	}, nil
 }
 
-func (p *njallaProvider) String() string                  { return string(constants.Njalla) }
-func (p *njallaProvider) Domain() string                  { return p.domain }
-func (p *njallaProvider) Owner() string                   { return p.owner }
-func (p *njallaProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *njallaProvider) Proxied() bool                   { return false }
-func (p *njallaProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
-}
-
 func (p *njallaProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
-	recordType := constants.A
+	q := url.Values{"h": {domainName(p.domain, p.owner)}, "k": {p.key}, "quiet": {""}}
+	key := "a"
 	if ip.Is6() {
-		recordType = constants.AAAA
+		key = "aaaa"
 	}
-
-	name := p.owner
-	if name == "" {
-		name = "@"
-	}
-
-	reqBody := map[string]interface{}{
-		"method": "set_record",
-		"params": map[string]interface{}{
-			"domain":  p.domain,
-			"name":    name,
-			"type":    recordType,
-			"content": ip.String(),
-			"token":   p.key,
-		},
-	}
-
-	payload, err := json.Marshal(reqBody)
+	q.Set(key, ip.String())
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://njal.la/update/?"+q.Encode(), nil)
 	if err != nil {
-		return netip.Addr{}, fmt.Errorf("encoding njalla request: %w", err)
+		return netip.Addr{}, err
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://njal.la/api/1/", bytes.NewReader(payload))
+	res, err := client.Do(req)
 	if err != nil {
-		return netip.Addr{}, fmt.Errorf("creating http request: %w", err)
+		return netip.Addr{}, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
+	defer res.Body.Close()
+	if err = responseStatus(res); err != nil {
+		return netip.Addr{}, err
+	}
+	body, err := readResponse(res.Body)
 	if err != nil {
-		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
+		return netip.Addr{}, err
 	}
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
-	}
-
-	var result struct {
-		Result struct {
-			Content string `json:"content"`
-		} `json:"result"`
-		Error *struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if err := json.Unmarshal(b, &result); err != nil {
-		return netip.Addr{}, fmt.Errorf("decoding njalla response: %w", err)
-	}
-
-	if result.Error != nil {
-		return netip.Addr{}, fmt.Errorf("njalla error %d: %s", result.Error.Code, result.Error.Message)
+	if strings.TrimSpace(string(body)) != "" {
+		return netip.Addr{}, fmt.Errorf("njalla: unexpected response: %.512s", body)
 	}
 	return ip, nil
 }

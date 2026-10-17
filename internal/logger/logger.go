@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"ddns-agent/internal/netutil"
 )
 
 type Level string
@@ -105,6 +107,8 @@ func (l *Logger) CloseFileLog() error {
 }
 
 func (l *Logger) log(level Level, source, message string) {
+	message = netutil.Redact(message)
+	source = netutil.Redact(source)
 	entry := LogEntry{
 		Level:     level,
 		Source:    source,
@@ -135,7 +139,9 @@ func (l *Logger) log(level Level, source, message string) {
 	}
 
 	if store != nil {
-		_ = store.InsertLog(string(level), source, message)
+		if err := store.InsertLog(string(level), source, message); err != nil {
+			fmt.Fprintf(os.Stderr, "ddns-agent: storing log: %v\n", err)
+		}
 	}
 	if sse != nil {
 		sse.BroadcastLog(entry)

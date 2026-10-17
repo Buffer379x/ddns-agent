@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,11 +13,11 @@ import (
 )
 
 type dynuProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
+	domain string
+	owner  string
+
+	username string
+	password string
 }
 
 func newDynu(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*dynuProvider, error) {
@@ -36,24 +35,12 @@ func newDynu(data json.RawMessage, domain, owner string, ipVersion constants.IPV
 		return nil, fmt.Errorf("dynu: password is required")
 	}
 	return &dynuProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  s.Username,
-		password:  s.Password,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *dynuProvider) String() string                  { return string(constants.Dynu) }
-func (p *dynuProvider) Domain() string                  { return p.domain }
-func (p *dynuProvider) Owner() string                   { return p.owner }
-func (p *dynuProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *dynuProvider) Proxied() bool                   { return false }
-func (p *dynuProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		username: s.Username,
+		password: s.Password,
+	}, nil
 }
 
 func (p *dynuProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -63,7 +50,7 @@ func (p *dynuProvider) Update(ctx context.Context, client *http.Client, ip netip
 		Path:   "/nic/update",
 	}
 	values := url.Values{}
-	values.Set("hostname", p.BuildDomainName())
+	values.Set("hostname", domainName(p.domain, p.owner))
 	values.Set("myip", ip.String())
 	u.RawQuery = values.Encode()
 
@@ -78,14 +65,17 @@ func (p *dynuProvider) Update(ctx context.Context, client *http.Client, ip netip
 		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
 
 	s := strings.TrimSpace(string(b))
-	if strings.Contains(s, "good") || strings.Contains(s, "nochg") {
+	if strings.HasPrefix(s, "good ") || s == "good" || strings.HasPrefix(s, "nochg ") || s == "nochg" {
 		return ip, nil
 	}
 	return netip.Addr{}, fmt.Errorf("dynu update failed: %s", s)

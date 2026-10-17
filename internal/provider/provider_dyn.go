@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,11 +13,11 @@ import (
 )
 
 type dynProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
+	domain string
+	owner  string
+
+	username string
+	password string
 }
 
 func newDyn(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -36,25 +35,12 @@ func newDyn(data json.RawMessage, domain, owner string, ipVersion constants.IPVe
 		return nil, fmt.Errorf("dyn: password is required")
 	}
 	return &dynProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		password:  extra.Password,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		password: extra.Password,
 	}, nil
-}
-
-func (p *dynProvider) String() string                    { return string(constants.Dyn) }
-func (p *dynProvider) Domain() string                    { return p.domain }
-func (p *dynProvider) Owner() string                     { return p.owner }
-func (p *dynProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *dynProvider) Proxied() bool                     { return false }
-
-func (p *dynProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *dynProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -64,7 +50,7 @@ func (p *dynProvider) Update(ctx context.Context, client *http.Client, ip netip.
 		Path:   "/nic/update",
 	}
 	q := url.Values{}
-	q.Set("hostname", p.BuildDomainName())
+	q.Set("hostname", domainName(p.domain, p.owner))
 	q.Set("myip", ip.String())
 	u.RawQuery = q.Encode()
 
@@ -79,8 +65,11 @@ func (p *dynProvider) Update(ctx context.Context, client *http.Client, ip netip.
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}

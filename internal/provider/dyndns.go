@@ -33,7 +33,7 @@ func parseDynDNSResponse(s string, ip netip.Addr, statusCode int, providerName s
 		return netip.Addr{}, fmt.Errorf("%s: status %d: %s", providerName, statusCode, s)
 	}
 
-	if !strings.HasPrefix(s, "good") && !strings.HasPrefix(s, "nochg") {
+	if !responseWord(s, "good") && !responseWord(s, "nochg") {
 		return netip.Addr{}, fmt.Errorf("%s: unexpected response: %q", providerName, s)
 	}
 

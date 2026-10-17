@@ -18,9 +18,9 @@ import (
 )
 
 type route53Provider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
+	domain string
+	owner  string
+
 	accessKey string
 	secretKey string
 	zoneID    string
@@ -51,9 +51,9 @@ func newRoute53(data json.RawMessage, domain, owner string, ipVersion constants.
 		ttl = *s.TTL
 	}
 	return &route53Provider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
+		domain: domain,
+		owner:  owner,
+
 		accessKey: s.AccessKey,
 		secretKey: s.SecretKey,
 		zoneID:    s.ZoneID,
@@ -61,20 +61,8 @@ func newRoute53(data json.RawMessage, domain, owner string, ipVersion constants.
 	}, nil
 }
 
-func (p *route53Provider) String() string              { return string(constants.Route53) }
-func (p *route53Provider) Domain() string              { return p.domain }
-func (p *route53Provider) Owner() string               { return p.owner }
-func (p *route53Provider) IPVersion() constants.IPVersion { return p.ipVersion }
-func (p *route53Provider) Proxied() bool               { return false }
-func (p *route53Provider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
-}
-
 const (
-	route53Host       = "route53.amazonaws.com"
+	route53Host        = "route53.amazonaws.com"
 	route53DateTimeFmt = "20060102T150405Z"
 	route53DateFmt     = "20060102"
 	route53Region      = "us-east-1"
@@ -93,15 +81,15 @@ type r53ChangeBatch struct {
 }
 
 type r53Change struct {
-	Action            string         `xml:"Action"`
-	ResourceRecordSet r53RecordSet   `xml:"ResourceRecordSet"`
+	Action            string       `xml:"Action"`
+	ResourceRecordSet r53RecordSet `xml:"ResourceRecordSet"`
 }
 
 type r53RecordSet struct {
-	Name            string       `xml:"Name"`
-	Type            string       `xml:"Type"`
-	TTL             uint32       `xml:"TTL"`
-	ResourceRecords []r53Record  `xml:"ResourceRecords>ResourceRecord"`
+	Name            string      `xml:"Name"`
+	Type            string      `xml:"Type"`
+	TTL             uint32      `xml:"TTL"`
+	ResourceRecords []r53Record `xml:"ResourceRecords>ResourceRecord"`
 }
 
 type r53Record struct {
@@ -109,8 +97,8 @@ type r53Record struct {
 }
 
 type r53ErrorResponse struct {
-	XMLName   xml.Name `xml:"ErrorResponse"`
-	Error     struct {
+	XMLName xml.Name `xml:"ErrorResponse"`
+	Error   struct {
 		Type    string `xml:"Type"`
 		Code    string `xml:"Code"`
 		Message string `xml:"Message"`
@@ -130,9 +118,9 @@ func (p *route53Provider) Update(ctx context.Context, client *http.Client, ip ne
 			Changes: []r53Change{{
 				Action: "UPSERT",
 				ResourceRecordSet: r53RecordSet{
-					Name: p.BuildDomainName(),
-					Type: recordType,
-					TTL:  p.ttl,
+					Name:            domainName(p.domain, p.owner),
+					Type:            recordType,
+					TTL:             p.ttl,
 					ResourceRecords: []r53Record{{Value: ip.String()}},
 				},
 			}},
@@ -162,6 +150,9 @@ func (p *route53Provider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode == http.StatusOK {
 		return ip, nil
