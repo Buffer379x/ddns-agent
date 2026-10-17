@@ -174,7 +174,7 @@ var providerInfoMap = map[constants.Provider]ProviderInfo{
 	constants.Njalla: {
 		Name: constants.Njalla, Label: "Njalla",
 		Fields: []ProviderField{
-			{Name: "key", Label: "API Key", Type: "password", Required: true},
+			{Name: "key", Label: "Dynamic DNS key", Type: "password", Required: true},
 		},
 	},
 	constants.Infomaniak: {

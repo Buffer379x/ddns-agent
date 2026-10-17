@@ -32,10 +32,7 @@ func (b *Broker) BroadcastLog(entry logger.LogEntry) {
 	b.broadcast("log", string(data))
 }
 
-func (b *Broker) BroadcastNotification(level, message string) {
-	data, _ := json.Marshal(map[string]string{"level": level, "message": message})
-	b.broadcast("notification", string(data))
-}
+func (b *Broker) BroadcastRecords() { b.broadcast("records", "{}") }
 
 func (b *Broker) broadcast(event, data string) {
 	msg := fmt.Sprintf("event: %s\ndata: %s\n\n", event, data)
@@ -69,43 +66,46 @@ func (b *Broker) trySubscribe() (chan string, func(), bool) {
 	return ch, unsub, true
 }
 
-func (b *Broker) Handler() http.HandlerFunc {
+func (b *Broker) Handler(valid func() bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(w, "streaming not supported", http.StatusInternalServerError)
-			return
-		}
-
 		ch, unsub, ok := b.trySubscribe()
 		if !ok {
 			http.Error(w, "too many connections", http.StatusServiceUnavailable)
 			return
 		}
 		defer unsub()
-
 		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Accel-Buffering", "no")
-
-		// Send initial heartbeat so the client knows the stream is live.
-		fmt.Fprintf(w, ": connected\n\n")
-		flusher.Flush()
-
-		ticker := time.NewTicker(30 * time.Second)
+		control := http.NewResponseController(w)
+		send := func(message string) bool {
+			_ = control.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if _, err := fmt.Fprint(w, message); err != nil {
+				return false
+			}
+			if err := control.Flush(); err != nil {
+				return false
+			}
+			_ = control.SetWriteDeadline(time.Time{})
+			return true
+		}
+		if !send(": connected\n\n") {
+			return
+		}
+		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
-
 		for {
 			select {
 			case <-r.Context().Done():
 				return
 			case msg := <-ch:
-				fmt.Fprint(w, msg)
-				flusher.Flush()
+				if !valid() || !send(msg) {
+					return
+				}
 			case <-ticker.C:
-				fmt.Fprintf(w, ": heartbeat\n\n")
-				flusher.Flush()
+				if !valid() || !send(": heartbeat\n\n") {
+					return
+				}
 			}
 		}
 	}

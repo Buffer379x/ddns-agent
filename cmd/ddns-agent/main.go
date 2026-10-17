@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -34,7 +36,9 @@ var version = "dev"
 func main() {
 	// Built-in health-check subcommand used by Docker HEALTHCHECK.
 	if len(os.Args) > 1 && os.Args[1] == "--health" {
-		resp, err := http.Get("http://localhost:8080/health")
+		port := config.Load().Port
+		client := &http.Client{Timeout: 4 * time.Second}
+		resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/health", port))
 		if err != nil {
 			os.Exit(1)
 		}
@@ -46,6 +50,10 @@ func main() {
 	}
 
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "ddns-agent: creating data directory: %v\n", err)
@@ -63,7 +71,7 @@ func main() {
 	}
 	defer db.Close()
 
-	initDefaults(db)
+	initDefaults(db, cfg)
 
 	updateInterval := cfg.UpdateInterval
 	if s, err := db.GetSetting("refresh_interval"); err == nil {
@@ -127,21 +135,30 @@ func main() {
 
 	jwtSecret := cfg.JWTSecret
 	if jwtSecret == "" {
-		jwtSecret = crypto.GenerateKey()
-		log.Warn("main", "no JWT secret configured, generated ephemeral key (sessions lost on restart)")
+		jwtSecret, err = crypto.LoadOrCreateKey(filepath.Join(cfg.DataDir, ".jwt-key"))
+		if err != nil {
+			log.Error("main", "loading session key: %v", err)
+			os.Exit(1)
+		}
 	}
 
-	authSvc := auth.NewService(jwtSecret)
+	authSvc := auth.NewService(jwtSecret, db)
 	ipFetcher := ipcheck.New(httpTimeout)
 	sseBroker := sse.NewBroker(100)
-	webhookSvc := webhook.New(db)
-	backupSvc := backup.New(db, cfg.BackupDir(), backupRetention)
+	webhookSvc := webhook.New(db, encryptor, func(message string) { log.Warn("webhook", "%s", message) })
+	backupSvc := backup.New(db, cfg.BackupDir(), backupRetention, encryptor)
+	backupSvc.SetReporter(func(message string) { log.Error("backup", "%s", message) })
 	updaterSvc := updater.New(db, ipFetcher, encryptor, log, webhookSvc,
 		updateInterval, cooldown, httpTimeout)
 
 	log.SetSSE(sseBroker)
+	updaterSvc.SetChanged(sseBroker.BroadcastRecords)
+	if err := migrateSecrets(db, encryptor); err != nil {
+		log.Error("main", "credential migration: %v", err)
+		os.Exit(1)
+	}
 
-	ensureDefaultAdmin(db, log)
+	ensureDefaultAdmin(db, log, cfg.DataDir)
 
 	stopBackup := make(chan struct{})
 	backupSvc.StartAutoBackup(stopBackup)
@@ -149,15 +166,18 @@ func main() {
 	handler := server.NewRouter(db, authSvc, updaterSvc, webhookSvc, backupSvc, encryptor, sseBroker, log, web.FS, version, cfg)
 
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Handler:           handler,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		MaxHeaderBytes:    16 << 10,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go updaterSvc.Start(ctx)
+	updaterDone := make(chan struct{})
+	go func() { defer close(updaterDone); updaterSvc.Start(ctx) }()
 
 	go func() {
 		log.Info("main", "web panel available at http://%s:%d", localIP(), cfg.Port)
@@ -177,9 +197,14 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
-	srv.Shutdown(shutdownCtx)
-	_ = log.CloseFileLog()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		_ = srv.Close()
+	}
+	<-updaterDone
+	webhookSvc.Close()
+	backupSvc.Wait()
 	log.Info("main", "goodbye")
+	_ = log.CloseFileLog()
 }
 
 // appTimeLocation resolves the effective log timezone. The DB setting
@@ -197,52 +222,63 @@ func appTimeLocation(cfg *config.Config, db *database.DB) *time.Location {
 
 // ensureDefaultAdmin creates the initial admin account when no users exist.
 // The application exits on any error to prevent starting with a broken auth state.
-func ensureDefaultAdmin(db *database.DB, log *logger.Logger) {
+func ensureDefaultAdmin(db *database.DB, log *logger.Logger, dataDir string) {
 	count, err := db.UserCount()
 	if err != nil {
-		log.Error("main", "checking user count: %v", err)
+		log.Error("main", "checking accounts: %v", err)
 		os.Exit(1)
 	}
 	if count > 0 {
 		return
 	}
-	hash, err := auth.HashPassword("admin")
+	password := os.Getenv("DDNS_ADMIN_PASSWORD")
+	if password == "" {
+		password = crypto.GenerateKey()[:24]
+	}
+	if err = auth.ValidatePassword(password); err != nil {
+		log.Error("main", "initial admin password: %v", err)
+		os.Exit(1)
+	}
+	hash, err := auth.HashPassword(password)
 	if err != nil {
-		log.Error("main", "hashing default admin password: %v", err)
+		log.Error("main", "hashing initial password: %v", err)
 		os.Exit(1)
 	}
-	if _, err := db.CreateUser("admin", hash, "admin"); err != nil {
-		log.Error("main", "creating default admin user: %v", err)
+	// Persist a recoverable bootstrap secret before creating the account; never write it to shared logs.
+	path := filepath.Join(dataDir, "bootstrap-password")
+	if err = os.WriteFile(path, []byte(password), 0600); err != nil {
+		log.Error("main", "writing bootstrap password: %v", err)
 		os.Exit(1)
 	}
-	log.Info("main", "default admin user created (username: admin, password: admin)")
+	user, err := db.CreateUser("admin", hash, "admin")
+	if err != nil {
+		log.Error("main", "creating administrator: %v", err)
+		os.Exit(1)
+	}
+	if err = db.RequirePasswordChange(user.ID); err != nil {
+		log.Error("main", "marking initial account: %v", err)
+		os.Exit(1)
+	}
+	log.Info("main", "initial administrator created; read %s and change the password after signing in", path)
 }
 
 // initDefaults seeds the settings table with sensible values on first install
 // and migrates the legacy "update_interval" Go-duration string to "refresh_interval" seconds.
-func initDefaults(db *database.DB) {
-	// Legacy migration: Go duration string → integer seconds used by the web UI.
+func initDefaults(db *database.DB, cfg *config.Config) {
 	if _, err := db.GetSetting("refresh_interval"); err != nil {
-		if legacy, err2 := db.GetSetting("update_interval"); err2 == nil && strings.TrimSpace(legacy) != "" {
-			if d, err3 := time.ParseDuration(strings.TrimSpace(legacy)); err3 == nil {
+		if legacy, err := db.GetSetting("update_interval"); err == nil {
+			if d, err := time.ParseDuration(legacy); err == nil && d >= time.Minute {
 				_ = db.SetSetting("refresh_interval", strconv.Itoa(int(d/time.Second)))
 			}
 		}
 	}
-
-	// Ordered slice ensures deterministic initialization and makes intent clear.
-	defaults := []struct{ key, value string }{
-		{"refresh_interval", "300"},
-		{"cooldown_seconds", "300"},
-		{"http_timeout_seconds", "10"},
-		{"backup_retention", "7"},
-		{"log_archive_days", "7"},
-		{"theme", "auto"},
-		{"language", "en"},
-	}
-	for _, d := range defaults {
-		if _, err := db.GetSetting(d.key); err != nil {
-			db.SetSetting(d.key, d.value)
+	defaults := map[string]string{"refresh_interval": strconv.Itoa(int(cfg.UpdateInterval / time.Second)), "cooldown_seconds": strconv.Itoa(int(cfg.CooldownPeriod / time.Second)), "http_timeout_seconds": strconv.Itoa(int(cfg.HTTPTimeout / time.Second)), "backup_retention": strconv.Itoa(cfg.BackupRetention), "log_archive_days": strconv.Itoa(cfg.LogRetention), "data_retention_days": "30", "theme": "auto", "language": "en"}
+	for key, value := range defaults {
+		if _, err := db.GetSetting(key); err != nil {
+			if err := db.SetSetting(key, value); err != nil {
+				fmt.Fprintln(os.Stderr, "initializing settings:", err)
+				os.Exit(1)
+			}
 		}
 	}
 }
@@ -260,4 +296,38 @@ func localIP() string {
 		}
 	}
 	return "0.0.0.0"
+}
+
+func migrateSecrets(db *database.DB, enc *crypto.Encryptor) error {
+	records, err := db.ListRecords()
+	if err != nil {
+		return err
+	}
+	for _, rec := range records {
+		if strings.HasPrefix(strings.TrimSpace(rec.ProviderConfig), "{") && json.Valid([]byte(rec.ProviderConfig)) {
+			rec.ProviderConfig, err = enc.Encrypt(rec.ProviderConfig)
+			if err != nil {
+				return err
+			}
+			if err = db.UpdateRecord(&rec); err != nil {
+				return err
+			}
+		}
+	}
+	hooks, err := db.ListWebhooks()
+	if err != nil {
+		return err
+	}
+	for _, hook := range hooks {
+		if !strings.HasPrefix(hook.URL, "v1:") {
+			hook.URL, err = enc.Encrypt(hook.URL)
+			if err != nil {
+				return err
+			}
+			if err = db.UpdateWebhook(&hook); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

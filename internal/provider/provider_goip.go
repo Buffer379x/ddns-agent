@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,11 +13,11 @@ import (
 )
 
 type goipProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
+	domain string
+	owner  string
+
+	username string
+	password string
 }
 
 func newGoIP(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -36,25 +35,12 @@ func newGoIP(data json.RawMessage, domain, owner string, ipVersion constants.IPV
 		return nil, fmt.Errorf("goip: password is required")
 	}
 	return &goipProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		password:  extra.Password,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		password: extra.Password,
 	}, nil
-}
-
-func (p *goipProvider) String() string                    { return string(constants.GoIP) }
-func (p *goipProvider) Domain() string                    { return p.domain }
-func (p *goipProvider) Owner() string                     { return p.owner }
-func (p *goipProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *goipProvider) Proxied() bool                     { return false }
-
-func (p *goipProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *goipProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -84,8 +70,11 @@ func (p *goipProvider) Update(ctx context.Context, client *http.Client, ip netip
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}

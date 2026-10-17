@@ -10,6 +10,9 @@
 
 # Keys
 .key
+.jwt-key
+bootstrap-password
+*.db.key
 
 # IDE
 .idea/
@@ -21,3 +24,6 @@
 
 # Go
 vendor/
+work/
+web/node_modules/
+web/dist/

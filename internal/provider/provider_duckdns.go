@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 )
 
 type duckdnsProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newDuckDNS(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -31,24 +30,11 @@ func newDuckDNS(data json.RawMessage, domain, owner string, ipVersion constants.
 		return nil, fmt.Errorf("duckdns: token is required")
 	}
 	return &duckdnsProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     extra.Token,
+		domain: domain,
+		owner:  owner,
+
+		token: extra.Token,
 	}, nil
-}
-
-func (p *duckdnsProvider) String() string                  { return string(constants.DuckDNS) }
-func (p *duckdnsProvider) Domain() string                  { return p.domain }
-func (p *duckdnsProvider) Owner() string                   { return p.owner }
-func (p *duckdnsProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *duckdnsProvider) Proxied() bool                   { return false }
-
-func (p *duckdnsProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *duckdnsProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -58,7 +44,7 @@ func (p *duckdnsProvider) Update(ctx context.Context, client *http.Client, ip ne
 		Path:   "/update",
 	}
 	q := url.Values{}
-	q.Set("domains", p.BuildDomainName())
+	q.Set("domains", domainName(p.domain, p.owner))
 	q.Set("token", p.token)
 	q.Set("verbose", "true")
 	if ip.Is6() {
@@ -78,8 +64,11 @@ func (p *duckdnsProvider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
@@ -92,10 +81,10 @@ func (p *duckdnsProvider) Update(ctx context.Context, client *http.Client, ip ne
 	if len(s) < 2 {
 		return netip.Addr{}, fmt.Errorf("duckdns: response too short: %q", s)
 	}
-	if strings.HasPrefix(s, "KO") || strings.HasPrefix(s, "ko") {
+	if responseWord(s, "KO") || responseWord(s, "ko") {
 		return netip.Addr{}, fmt.Errorf("duckdns: authentication failed")
 	}
-	if !strings.HasPrefix(s, "OK") && !strings.HasPrefix(s, "ok") {
+	if !responseWord(s, "OK") && !responseWord(s, "ok") {
 		return netip.Addr{}, fmt.Errorf("duckdns: unexpected response: %q", s)
 	}
 

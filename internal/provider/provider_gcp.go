@@ -15,13 +15,14 @@ import (
 	"time"
 
 	"ddns-agent/internal/provider/constants"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type gcpProvider struct {
-	domain      string
-	owner       string
-	ipVersion   constants.IPVersion
+	domain string
+	owner  string
+
 	project     string
 	zone        string
 	credentials json.RawMessage
@@ -46,26 +47,13 @@ func newGCP(data json.RawMessage, domain, owner string, ipVersion constants.IPVe
 		return nil, fmt.Errorf("gcp: credentials JSON is required")
 	}
 	return &gcpProvider{
-		domain:      domain,
-		owner:       owner,
-		ipVersion:   ipVersion,
+		domain: domain,
+		owner:  owner,
+
 		project:     extra.Project,
 		zone:        extra.Zone,
 		credentials: extra.Credentials,
 	}, nil
-}
-
-func (p *gcpProvider) String() string                    { return string(constants.GCP) }
-func (p *gcpProvider) Domain() string                    { return p.domain }
-func (p *gcpProvider) Owner() string                     { return p.owner }
-func (p *gcpProvider) IPVersion() constants.IPVersion     { return p.ipVersion }
-func (p *gcpProvider) Proxied() bool                     { return false }
-
-func (p *gcpProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *gcpProvider) getAccessToken(ctx context.Context, client *http.Client) (string, error) {
@@ -126,14 +114,14 @@ func (p *gcpProvider) getAccessToken(ctx context.Context, client *http.Client) (
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return "", fmt.Errorf("gcp token exchange: status %d: %s", resp.StatusCode, string(b))
 	}
 
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&tokenResp); err != nil {
 		return "", fmt.Errorf("decoding token response: %w", err)
 	}
 	return tokenResp.AccessToken, nil
@@ -156,7 +144,7 @@ func (p *gcpProvider) Update(ctx context.Context, client *http.Client, ip netip.
 	if ip.Is6() {
 		recordType = constants.AAAA
 	}
-	fqdn := p.BuildDomainName() + "."
+	fqdn := domainName(p.domain, p.owner) + "."
 
 	existingRRSet, err := p.gcpGetRRSet(ctx, client, accessToken, fqdn, recordType)
 	if err != nil {
@@ -199,9 +187,12 @@ func (p *gcpProvider) Update(ctx context.Context, client *http.Client, ip netip.
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return netip.Addr{}, fmt.Errorf("gcp change: status %d: %s", resp.StatusCode, string(b))
 	}
 
@@ -227,12 +218,12 @@ func (p *gcpProvider) gcpGetRRSet(ctx context.Context, client *http.Client, acce
 		return nil, nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return nil, fmt.Errorf("gcp get rrset: status %d: %s", resp.StatusCode, string(b))
 	}
 
 	var rrSet gcpResourceRecordSet
-	if err := json.NewDecoder(resp.Body).Decode(&rrSet); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&rrSet); err != nil {
 		return nil, fmt.Errorf("decoding rrset: %w", err)
 	}
 	return &rrSet, nil

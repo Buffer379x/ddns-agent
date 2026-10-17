@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,10 +14,10 @@ import (
 )
 
 type digitaloceanProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newDigitalOcean(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -30,24 +31,11 @@ func newDigitalOcean(data json.RawMessage, domain, owner string, ipVersion const
 		return nil, fmt.Errorf("digitalocean: token is required")
 	}
 	return &digitaloceanProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     extra.Token,
+		domain: domain,
+		owner:  owner,
+
+		token: extra.Token,
 	}, nil
-}
-
-func (p *digitaloceanProvider) String() string                  { return string(constants.DigitalOcean) }
-func (p *digitaloceanProvider) Domain() string                  { return p.domain }
-func (p *digitaloceanProvider) Owner() string                   { return p.owner }
-func (p *digitaloceanProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *digitaloceanProvider) Proxied() bool                   { return false }
-
-func (p *digitaloceanProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *digitaloceanProvider) setHeaders(req *http.Request) {
@@ -57,63 +45,35 @@ func (p *digitaloceanProvider) setHeaders(req *http.Request) {
 }
 
 func (p *digitaloceanProvider) getRecordID(ctx context.Context, client *http.Client, ip netip.Addr) (int64, bool, error) {
-	recordType := constants.A
+	typ := "A"
 	if ip.Is6() {
-		recordType = constants.AAAA
+		typ = "AAAA"
 	}
-
 	name := p.owner
 	if name == "" {
 		name = "@"
 	}
-
-	u := url.URL{
-		Scheme: "https",
-		Host:   "api.digitalocean.com",
-		Path:   fmt.Sprintf("/v2/domains/%s/records", p.domain),
-	}
-	q := url.Values{}
-	q.Set("type", recordType)
-	q.Set("name", name)
-	u.RawQuery = q.Encode()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return 0, false, fmt.Errorf("creating request: %w", err)
-	}
-	p.setHeaders(req)
-
-	resp, err := client.Do(req)
+	u := "https://api.digitalocean.com/v2/domains/" + p.domain + "/records?per_page=100&type=" + typ
+	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
 		return 0, false, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, false, fmt.Errorf("digitalocean list records: status %d", resp.StatusCode)
+	p.setHeaders(req)
+	type record struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+		Type string `json:"type"`
+		Data string `json:"data"`
 	}
-
-	var body struct {
-		DomainRecords []struct {
-			ID   int64  `json:"id"`
-			Data string `json:"data"`
-			Name string `json:"name"`
-			Type string `json:"type"`
-		} `json:"domain_records"`
+	records, err := listPaged[record](ctx, client, req, "domain_records")
+	if err != nil {
+		return 0, false, err
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return 0, false, fmt.Errorf("decoding response: %w", err)
-	}
-
-	for _, rec := range body.DomainRecords {
-		if rec.Type == recordType && rec.Name == name {
-			if rec.Data == ip.String() {
-				return rec.ID, true, nil
-			}
-			return rec.ID, false, nil
+	for _, r := range records {
+		if r.Type == typ && r.Name == name {
+			return r.ID, r.Data == ip.String(), nil
 		}
 	}
-
 	return 0, false, nil
 }
 
@@ -168,6 +128,9 @@ func (p *digitaloceanProvider) Update(ctx context.Context, client *http.Client, 
 			return netip.Addr{}, err
 		}
 		defer resp.Body.Close()
+		if err := responseStatus(resp); err != nil {
+			return netip.Addr{}, err
+		}
 
 		if resp.StatusCode != http.StatusCreated {
 			return netip.Addr{}, fmt.Errorf("digitalocean create record: status %d", resp.StatusCode)
@@ -213,7 +176,7 @@ func (p *digitaloceanProvider) Update(ctx context.Context, client *http.Client, 
 			Data string `json:"data"`
 		} `json:"domain_record"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&respBody); err != nil {
 		return netip.Addr{}, fmt.Errorf("decoding response: %w", err)
 	}
 

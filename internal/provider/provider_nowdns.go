@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,11 +13,11 @@ import (
 )
 
 type nowdnsProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	password  string
+	domain string
+	owner  string
+
+	username string
+	password string
 }
 
 func newNowDNS(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -36,25 +35,12 @@ func newNowDNS(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("nowdns: password is required")
 	}
 	return &nowdnsProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		password:  extra.Password,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		password: extra.Password,
 	}, nil
-}
-
-func (p *nowdnsProvider) String() string                    { return string(constants.NowDNS) }
-func (p *nowdnsProvider) Domain() string                    { return p.domain }
-func (p *nowdnsProvider) Owner() string                     { return p.owner }
-func (p *nowdnsProvider) IPVersion() constants.IPVersion     { return p.ipVersion }
-func (p *nowdnsProvider) Proxied() bool                     { return false }
-
-func (p *nowdnsProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *nowdnsProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -65,7 +51,7 @@ func (p *nowdnsProvider) Update(ctx context.Context, client *http.Client, ip net
 		Path:   "/nic/update",
 	}
 	q := url.Values{}
-	q.Set("hostname", p.BuildDomainName())
+	q.Set("hostname", domainName(p.domain, p.owner))
 	q.Set("myip", ip.String())
 	u.RawQuery = q.Encode()
 
@@ -79,15 +65,18 @@ func (p *nowdnsProvider) Update(ctx context.Context, client *http.Client, ip net
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
 	s := strings.TrimSpace(string(b))
 
 	switch {
-	case strings.Contains(s, "good"), strings.Contains(s, "nochg"):
+	case strings.HasPrefix(s, "good ") || s == "good", strings.HasPrefix(s, "nochg ") || s == "nochg":
 		return ip, nil
 	case strings.Contains(s, "nohost"):
 		return netip.Addr{}, fmt.Errorf("nowdns: hostname not found")

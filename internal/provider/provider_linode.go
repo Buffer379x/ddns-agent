@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,10 +14,10 @@ import (
 )
 
 type linodeProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newLinode(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*linodeProvider, error) {
@@ -30,23 +31,11 @@ func newLinode(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("linode: token is required")
 	}
 	return &linodeProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     s.Token,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *linodeProvider) String() string                  { return string(constants.Linode) }
-func (p *linodeProvider) Domain() string                  { return p.domain }
-func (p *linodeProvider) Owner() string                   { return p.owner }
-func (p *linodeProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *linodeProvider) Proxied() bool                   { return false }
-func (p *linodeProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		token: s.Token,
+	}, nil
 }
 
 func (p *linodeProvider) linodeRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
@@ -71,13 +60,16 @@ func (p *linodeProvider) Update(ctx context.Context, client *http.Client, ip net
 	}
 
 	recordID, err := p.getRecordID(ctx, client, domainID, recordType)
-	if err != nil {
+	if errors.Is(err, errRecordNotFound) {
 		if err := p.createLinodeRecord(ctx, client, domainID, recordType, ip); err != nil {
 			return netip.Addr{}, fmt.Errorf("creating linode record: %w", err)
 		}
 		return ip, nil
 	}
 
+	if err != nil {
+		return netip.Addr{}, err
+	}
 	if err := p.updateLinodeRecord(ctx, client, domainID, recordID, ip); err != nil {
 		return netip.Addr{}, fmt.Errorf("updating linode record: %w", err)
 	}
@@ -85,82 +77,57 @@ func (p *linodeProvider) Update(ctx context.Context, client *http.Client, ip net
 }
 
 func (p *linodeProvider) getDomainID(ctx context.Context, client *http.Client) (int, error) {
-	req, err := p.linodeRequest(ctx, http.MethodGet, "https://api.linode.com/v4/domains", nil)
+	req, err := p.linodeRequest(ctx, "GET", "https://api.linode.com/v4/domains?page_size=100", nil)
 	if err != nil {
-		return 0, fmt.Errorf("creating http request: %w", err)
+		return 0, err
 	}
-
-	resp, err := client.Do(req)
+	type domain struct {
+		ID     int    `json:"id"`
+		Domain string `json:"domain"`
+	}
+	domains, err := listPaged[domain](ctx, client, req, "data")
 	if err != nil {
-		return 0, fmt.Errorf("doing http request: %w", err)
+		return 0, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("linode list domains: HTTP %d: %s", resp.StatusCode, string(b))
-	}
-
-	var result struct {
-		Data []struct {
-			ID     int    `json:"id"`
-			Domain string `json:"domain"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, fmt.Errorf("decoding linode response: %w", err)
-	}
-
-	for _, d := range result.Data {
+	for _, d := range domains {
 		if d.Domain == p.domain {
 			return d.ID, nil
 		}
 	}
-	return 0, fmt.Errorf("linode: domain %q not found", p.domain)
+	return 0, fmt.Errorf("linode: domain %s not found", p.domain)
 }
 
 func (p *linodeProvider) getRecordID(ctx context.Context, client *http.Client, domainID int, recordType string) (int, error) {
-	url := fmt.Sprintf("https://api.linode.com/v4/domains/%d/records", domainID)
-	req, err := p.linodeRequest(ctx, http.MethodGet, url, nil)
+	req, err := p.linodeRequest(ctx, "GET", fmt.Sprintf("https://api.linode.com/v4/domains/%d/records?page_size=100", domainID), nil)
 	if err != nil {
-		return 0, fmt.Errorf("creating http request: %w", err)
+		return 0, err
 	}
-
-	resp, err := client.Do(req)
+	type record struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	records, err := listPaged[record](ctx, client, req, "data")
 	if err != nil {
-		return 0, fmt.Errorf("doing http request: %w", err)
+		return 0, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("linode list records: HTTP %d: %s", resp.StatusCode, string(b))
+	name := p.owner
+	if name == "@" {
+		name = ""
 	}
-
-	var result struct {
-		Data []struct {
-			ID   int    `json:"id"`
-			Type string `json:"type"`
-			Name string `json:"name"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, fmt.Errorf("decoding linode response: %w", err)
-	}
-
-	for _, r := range result.Data {
-		if r.Type == recordType && r.Name == p.owner {
+	for _, r := range records {
+		if r.Type == recordType && r.Name == name {
 			return r.ID, nil
 		}
 	}
-	return 0, fmt.Errorf("linode: record not found")
+	return 0, errRecordNotFound
 }
 
 func (p *linodeProvider) createLinodeRecord(ctx context.Context, client *http.Client, domainID int, recordType string, ip netip.Addr) error {
 	url := fmt.Sprintf("https://api.linode.com/v4/domains/%d/records", domainID)
 	payload, _ := json.Marshal(map[string]interface{}{
 		"type":   recordType,
-		"name":   p.owner,
+		"name":   rootName(p.owner),
 		"target": ip.String(),
 	})
 	req, err := p.linodeRequest(ctx, http.MethodPost, url, bytes.NewReader(payload))
@@ -175,7 +142,7 @@ func (p *linodeProvider) createLinodeRecord(ctx context.Context, client *http.Cl
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return fmt.Errorf("linode create record: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	return nil
@@ -198,7 +165,7 @@ func (p *linodeProvider) updateLinodeRecord(ctx context.Context, client *http.Cl
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return fmt.Errorf("linode update record: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	return nil

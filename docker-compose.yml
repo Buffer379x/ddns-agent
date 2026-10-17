@@ -1,6 +1,7 @@
 services:
   ddns-agent:
     build: .
+    image: ddns-agent:local
     container_name: ddns-agent
     restart: unless-stopped
     ports:
@@ -8,19 +9,12 @@ services:
     volumes:
       - ddns-data:/data
     environment:
-      - DDNS_DATA_DIR=/data
-      - DDNS_PORT=8080
-      # Optional: set a fixed JWT secret for persistent sessions across restarts
-      # - DDNS_JWT_SECRET=your-secret-here
-      # Optional: set a fixed encryption key (64 hex chars = 32 bytes)
-      # - DDNS_ENCRYPTION_KEY=your-64-char-hex-key
-    healthcheck:
-      test: ["CMD", "/ddns-agent", "--health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
+      DDNS_DATA_DIR: /data
+      DDNS_PORT: '8080'
+      # Optional for Unraid-owned appdata:
+      # DDNS_UID: '99'
+      # DDNS_GID: '100'
+      # Trust only the actual reverse proxy network, when applicable:
+      # DDNS_TRUSTED_PROXIES: '172.20.0.0/24'
 volumes:
   ddns-data:
-    driver: local

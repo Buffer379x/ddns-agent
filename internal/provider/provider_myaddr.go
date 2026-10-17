@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 )
 
 type myaddrProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	password  string
+	domain string
+	owner  string
+
+	password string
 }
 
 func newMyAddr(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -31,24 +30,11 @@ func newMyAddr(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("myaddr: password is required")
 	}
 	return &myaddrProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		password:  extra.Password,
+		domain: domain,
+		owner:  owner,
+
+		password: extra.Password,
 	}, nil
-}
-
-func (p *myaddrProvider) String() string                    { return string(constants.MyAddr) }
-func (p *myaddrProvider) Domain() string                    { return p.domain }
-func (p *myaddrProvider) Owner() string                     { return p.owner }
-func (p *myaddrProvider) IPVersion() constants.IPVersion     { return p.ipVersion }
-func (p *myaddrProvider) Proxied() bool                     { return false }
-
-func (p *myaddrProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *myaddrProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -58,7 +44,7 @@ func (p *myaddrProvider) Update(ctx context.Context, client *http.Client, ip net
 		Path:   "/update",
 	}
 	q := url.Values{}
-	q.Set("hostname", p.BuildDomainName())
+	q.Set("hostname", domainName(p.domain, p.owner))
 	q.Set("password", p.password)
 	q.Set("ip", ip.String())
 	u.RawQuery = q.Encode()
@@ -73,8 +59,11 @@ func (p *myaddrProvider) Update(ctx context.Context, client *http.Client, ip net
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}
@@ -85,7 +74,7 @@ func (p *myaddrProvider) Update(ctx context.Context, client *http.Client, ip net
 	}
 
 	switch {
-	case strings.HasPrefix(s, "good"), strings.HasPrefix(s, "nochg"):
+	case responseWord(s, "good"), responseWord(s, "nochg"):
 		return ip, nil
 	case strings.HasPrefix(s, "nohost"):
 		return netip.Addr{}, fmt.Errorf("myaddr: hostname not found")

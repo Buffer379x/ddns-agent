@@ -13,10 +13,10 @@ import (
 )
 
 type vultrProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newVultr(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*vultrProvider, error) {
@@ -30,23 +30,11 @@ func newVultr(data json.RawMessage, domain, owner string, ipVersion constants.IP
 		return nil, fmt.Errorf("vultr: token is required")
 	}
 	return &vultrProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     s.Token,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *vultrProvider) String() string                  { return string(constants.Vultr) }
-func (p *vultrProvider) Domain() string                  { return p.domain }
-func (p *vultrProvider) Owner() string                   { return p.owner }
-func (p *vultrProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *vultrProvider) Proxied() bool                   { return false }
-func (p *vultrProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		token: s.Token,
+	}, nil
 }
 
 func (p *vultrProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -84,37 +72,21 @@ func (p *vultrProvider) vultrRequest(ctx context.Context, method, url string, bo
 }
 
 func (p *vultrProvider) getRecordID(ctx context.Context, client *http.Client, recordType string) (string, error) {
-	url := fmt.Sprintf("https://api.vultr.com/v2/domains/%s/records", p.domain)
-	req, err := p.vultrRequest(ctx, http.MethodGet, url, nil)
+	req, err := p.vultrRequest(ctx, "GET", fmt.Sprintf("https://api.vultr.com/v2/domains/%s/records?per_page=100", p.domain), nil)
 	if err != nil {
-		return "", fmt.Errorf("creating http request: %w", err)
+		return "", err
 	}
-
-	resp, err := client.Do(req)
+	type record struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	records, err := listPaged[record](ctx, client, req, "records")
 	if err != nil {
-		return "", fmt.Errorf("doing http request: %w", err)
+		return "", err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("vultr list records: HTTP %d: %s", resp.StatusCode, string(b))
-	}
-
-	var result struct {
-		Records []struct {
-			ID   string `json:"id"`
-			Type string `json:"type"`
-			Name string `json:"name"`
-			Data string `json:"data"`
-		} `json:"records"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decoding vultr response: %w", err)
-	}
-
-	for _, r := range result.Records {
-		if r.Type == recordType && r.Name == p.owner {
+	for _, r := range records {
+		if r.Type == recordType && rootName(r.Name) == rootName(p.owner) {
 			return r.ID, nil
 		}
 	}
@@ -124,7 +96,7 @@ func (p *vultrProvider) getRecordID(ctx context.Context, client *http.Client, re
 func (p *vultrProvider) createRecord(ctx context.Context, client *http.Client, recordType string, ip netip.Addr) error {
 	url := fmt.Sprintf("https://api.vultr.com/v2/domains/%s/records", p.domain)
 	payload, _ := json.Marshal(map[string]interface{}{
-		"name": p.owner,
+		"name": rootName(p.owner),
 		"type": recordType,
 		"data": ip.String(),
 		"ttl":  300,
@@ -141,7 +113,7 @@ func (p *vultrProvider) createRecord(ctx context.Context, client *http.Client, r
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return fmt.Errorf("vultr create record: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	return nil
@@ -164,7 +136,7 @@ func (p *vultrProvider) updateRecord(ctx context.Context, client *http.Client, r
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return fmt.Errorf("vultr update record: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	return nil

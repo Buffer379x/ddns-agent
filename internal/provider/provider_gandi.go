@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 
@@ -13,9 +12,9 @@ import (
 )
 
 type gandiProvider struct {
-	domain              string
-	owner               string
-	ipVersion           constants.IPVersion
+	domain string
+	owner  string
+
 	personalAccessToken string
 }
 
@@ -30,23 +29,11 @@ func newGandi(data json.RawMessage, domain, owner string, ipVersion constants.IP
 		return nil, fmt.Errorf("gandi: personal_access_token is required")
 	}
 	return &gandiProvider{
-		domain:              domain,
-		owner:               owner,
-		ipVersion:           ipVersion,
+		domain: domain,
+		owner:  owner,
+
 		personalAccessToken: s.PersonalAccessToken,
 	}, nil
-}
-
-func (p *gandiProvider) String() string                  { return string(constants.Gandi) }
-func (p *gandiProvider) Domain() string                  { return p.domain }
-func (p *gandiProvider) Owner() string                   { return p.owner }
-func (p *gandiProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *gandiProvider) Proxied() bool                   { return false }
-func (p *gandiProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *gandiProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -80,9 +67,12 @@ func (p *gandiProvider) Update(ctx context.Context, client *http.Client, ip neti
 		return netip.Addr{}, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return netip.Addr{}, fmt.Errorf("gandi update record: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	return ip, nil

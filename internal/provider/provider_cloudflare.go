@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -14,9 +15,9 @@ import (
 )
 
 type cloudflareProvider struct {
-	domain         string
-	owner          string
-	ipVersion      constants.IPVersion
+	domain string
+	owner  string
+
 	zoneIdentifier string
 	token          string
 	email          string
@@ -48,9 +49,9 @@ func newCloudflare(data json.RawMessage, domain, owner string, ipVersion constan
 		ttl = 1 // 1 = automatic
 	}
 	return &cloudflareProvider{
-		domain:         domain,
-		owner:          owner,
-		ipVersion:      ipVersion,
+		domain: domain,
+		owner:  owner,
+
 		zoneIdentifier: extra.ZoneIdentifier,
 		token:          extra.Token,
 		email:          extra.Email,
@@ -58,19 +59,6 @@ func newCloudflare(data json.RawMessage, domain, owner string, ipVersion constan
 		proxied:        extra.Proxied,
 		ttl:            ttl,
 	}, nil
-}
-
-func (p *cloudflareProvider) String() string        { return string(constants.Cloudflare) }
-func (p *cloudflareProvider) Domain() string         { return p.domain }
-func (p *cloudflareProvider) Owner() string          { return p.owner }
-func (p *cloudflareProvider) IPVersion() constants.IPVersion { return p.ipVersion }
-func (p *cloudflareProvider) Proxied() bool          { return p.proxied }
-
-func (p *cloudflareProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *cloudflareProvider) setHeaders(req *http.Request) {
@@ -97,7 +85,7 @@ func (p *cloudflareProvider) getRecordID(ctx context.Context, client *http.Clien
 	}
 	q := url.Values{}
 	q.Set("type", recordType)
-	q.Set("name", p.BuildDomainName())
+	q.Set("name", domainName(p.domain, p.owner))
 	q.Set("page", "1")
 	q.Set("per_page", "1")
 	u.RawQuery = q.Encode()
@@ -129,7 +117,7 @@ func (p *cloudflareProvider) getRecordID(ctx context.Context, client *http.Clien
 			Content string `json:"content"`
 		} `json:"result"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 		return "", false, fmt.Errorf("decoding response: %w", err)
 	}
 	if !body.Success {
@@ -169,7 +157,7 @@ func (p *cloudflareProvider) createRecord(ctx context.Context, client *http.Clie
 		TTL     uint32 `json:"ttl"`
 	}{
 		Type:    recordType,
-		Name:    p.BuildDomainName(),
+		Name:    domainName(p.domain, p.owner),
 		Content: ip.String(),
 		Proxied: p.proxied,
 		TTL:     p.ttl,
@@ -199,7 +187,7 @@ func (p *cloudflareProvider) createRecord(ctx context.Context, client *http.Clie
 			Message string `json:"message"`
 		} `json:"errors"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 		return fmt.Errorf("decoding response: %w", err)
 	}
 	if !body.Success {
@@ -247,7 +235,7 @@ func (p *cloudflareProvider) Update(ctx context.Context, client *http.Client, ip
 		TTL     uint32 `json:"ttl"`
 	}{
 		Type:    recordType,
-		Name:    p.BuildDomainName(),
+		Name:    domainName(p.domain, p.owner),
 		Content: ip.String(),
 		Proxied: p.proxied,
 		TTL:     p.ttl,
@@ -269,6 +257,9 @@ func (p *cloudflareProvider) Update(ctx context.Context, client *http.Client, ip
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	var body struct {
 		Success bool `json:"success"`
@@ -280,7 +271,7 @@ func (p *cloudflareProvider) Update(ctx context.Context, client *http.Client, ip
 			Content string `json:"content"`
 		} `json:"result"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 		return netip.Addr{}, fmt.Errorf("decoding response: %w", err)
 	}
 	if !body.Success {

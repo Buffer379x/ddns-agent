@@ -13,11 +13,11 @@ import (
 )
 
 type namecomProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	username  string
-	token     string
+	domain string
+	owner  string
+
+	username string
+	token    string
 }
 
 func newNameCom(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -35,71 +35,35 @@ func newNameCom(data json.RawMessage, domain, owner string, ipVersion constants.
 		return nil, fmt.Errorf("name.com: token is required")
 	}
 	return &namecomProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		username:  extra.Username,
-		token:     extra.Token,
+		domain: domain,
+		owner:  owner,
+
+		username: extra.Username,
+		token:    extra.Token,
 	}, nil
 }
 
-func (p *namecomProvider) String() string                    { return string(constants.NameCom) }
-func (p *namecomProvider) Domain() string                    { return p.domain }
-func (p *namecomProvider) Owner() string                     { return p.owner }
-func (p *namecomProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *namecomProvider) Proxied() bool                     { return false }
-
-func (p *namecomProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
-}
-
 func (p *namecomProvider) getRecordID(ctx context.Context, client *http.Client, recordType string) (int, error) {
-	u := url.URL{
-		Scheme: "https",
-		Host:   "api.name.com",
-		Path:   fmt.Sprintf("/v4/domains/%s/records", p.domain),
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return 0, fmt.Errorf("creating request: %w", err)
-	}
-	req.SetBasicAuth(p.username, p.token)
-
-	resp, err := client.Do(req)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.name.com/v4/domains/%s/records?perPage=100", p.domain), nil)
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("name.com list records: status %d", resp.StatusCode)
+	req.SetBasicAuth(p.username, p.token)
+	type record struct {
+		ID   int    `json:"id"`
+		Host string `json:"host"`
+		Type string `json:"type"`
 	}
-
-	var body struct {
-		Records []struct {
-			ID   int    `json:"id"`
-			Host string `json:"host"`
-			Type string `json:"type"`
-		} `json:"records"`
+	records, err := listPaged[record](ctx, client, req, "records")
+	if err != nil {
+		return 0, err
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return 0, fmt.Errorf("decoding response: %w", err)
-	}
-
-	for _, rec := range body.Records {
-		host := rec.Host
-		if host == "" {
-			host = "@"
-		}
-		if host == p.owner && rec.Type == recordType {
-			return rec.ID, nil
+	for _, r := range records {
+		if r.Type == recordType && rootName(r.Host) == rootName(p.owner) {
+			return r.ID, nil
 		}
 	}
-	return 0, fmt.Errorf("name.com: no %s record found for %s", recordType, p.owner)
+	return 0, errRecordNotFound
 }
 
 func (p *namecomProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -150,6 +114,9 @@ func (p *namecomProvider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return netip.Addr{}, fmt.Errorf("name.com update: status %d", resp.StatusCode)

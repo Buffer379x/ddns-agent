@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -20,7 +21,27 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
-	conn, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=on")
+	// SQLite inherits the main file's permissions for newly created WAL/SHM files.
+	// Secure the main file before opening SQLite, including existing 1.0.x volumes.
+	file, err := os.OpenFile(dbPath, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("preparing database file: %w", err)
+	}
+	err = file.Chmod(0600)
+	closeErr := file.Close()
+	if err != nil {
+		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if err = os.Chmod(dbPath+suffix, 0600); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("securing database companion: %w", err)
+		}
+	}
+
+	conn, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=on&_busy_timeout=5000")
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
@@ -34,6 +55,10 @@ func New(dbPath string) (*DB, error) {
 		conn.Close()
 		return nil, fmt.Errorf("running migrations: %w", err)
 	}
+	if err := os.Chmod(dbPath, 0600); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	return db, nil
 }
 
@@ -44,20 +69,20 @@ func (db *DB) Ping() error  { return db.conn.Ping() }
 func (db *DB) Path() string { return db.path }
 
 // Vacuum creates a compacted copy of the database at dest using SQLite's
-// VACUUM INTO statement. dest must not contain a single-quote character.
+// VACUUM INTO statement with a parameterized destination.
 func (db *DB) Vacuum(dest string) error {
-	for _, c := range dest {
-		if c == '\'' {
-			return fmt.Errorf("vacuum: destination path must not contain single quotes")
-		}
+	_, err := db.conn.Exec("VACUUM INTO ?", dest)
+	if err != nil {
+		return err
 	}
-	_, err := db.conn.Exec("VACUUM INTO '" + dest + "'")
-	return err
+	return os.Chmod(dest, 0600)
 }
 
 func (db *DB) migrate() error {
-	_, err := db.conn.Exec(schema)
-	return err
+	if _, err := db.conn.Exec(schema); err != nil {
+		return err
+	}
+	return db.upgrade()
 }
 
 // CheckIntegrity runs SQLite's built-in integrity checks and returns a list
@@ -117,7 +142,6 @@ func (db *DB) CheckIntegrity() ([]string, error) {
 func (db *DB) Repair() error {
 	return db.migrate()
 }
-
 
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
@@ -183,11 +207,12 @@ CREATE INDEX IF NOT EXISTS idx_records_status ON records(status);
 // --- User Queries ---
 
 type User struct {
-	ID           int       `json:"id"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
-	Role         string    `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                 int       `json:"id"`
+	Username           string    `json:"username"`
+	PasswordHash       string    `json:"-"`
+	MustChangePassword bool      `json:"must_change_password"`
+	Role               string    `json:"role"`
+	CreatedAt          time.Time `json:"created_at"`
 }
 
 func (db *DB) UserCount() (int, error) {
@@ -208,8 +233,8 @@ func (db *DB) CreateUser(username, passwordHash, role string) (*User, error) {
 
 func (db *DB) GetUserByUsername(username string) (*User, error) {
 	u := &User{}
-	err := db.conn.QueryRow("SELECT id, username, password_hash, role, created_at FROM users WHERE username = ?", username).
-		Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt)
+	err := db.conn.QueryRow("SELECT id, username, password_hash, role, created_at, must_change_password FROM users WHERE username = ?", username).
+		Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt, &u.MustChangePassword)
 	if err != nil {
 		return nil, err
 	}
@@ -218,8 +243,8 @@ func (db *DB) GetUserByUsername(username string) (*User, error) {
 
 func (db *DB) GetUserByID(id int) (*User, error) {
 	u := &User{}
-	err := db.conn.QueryRow("SELECT id, username, password_hash, role, created_at FROM users WHERE id = ?", id).
-		Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt)
+	err := db.conn.QueryRow("SELECT id, username, password_hash, role, created_at, must_change_password FROM users WHERE id = ?", id).
+		Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt, &u.MustChangePassword)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +252,7 @@ func (db *DB) GetUserByID(id int) (*User, error) {
 }
 
 func (db *DB) ListUsers() ([]User, error) {
-	rows, err := db.conn.Query("SELECT id, username, role, created_at FROM users ORDER BY id")
+	rows, err := db.conn.Query("SELECT id, username, role, created_at, must_change_password FROM users ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +260,7 @@ func (db *DB) ListUsers() ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Role, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Role, &u.CreatedAt, &u.MustChangePassword); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -244,18 +269,41 @@ func (db *DB) ListUsers() ([]User, error) {
 }
 
 func (db *DB) UpdateUser(id int, username, passwordHash, role string) error {
-	if passwordHash != "" {
-		_, err := db.conn.Exec("UPDATE users SET username=?, password_hash=?, role=? WHERE id=?",
-			username, passwordHash, role, id)
+	tx, err := db.conn.Begin()
+	if err != nil {
 		return err
 	}
-	_, err := db.conn.Exec("UPDATE users SET username=?, role=? WHERE id=?", username, role, id)
-	return err
+	defer tx.Rollback()
+	if err = guardAdmin(tx, id, role, false); err != nil {
+		return err
+	}
+	if passwordHash != "" {
+		_, err = tx.Exec("UPDATE users SET username=?,password_hash=?,role=?,must_change_password=0 WHERE id=?", username, passwordHash, role, id)
+	} else {
+		_, err = tx.Exec("UPDATE users SET username=?,role=? WHERE id=?", username, role, id)
+	}
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec("DELETE FROM sessions WHERE user_id=?", id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (db *DB) DeleteUser(id int) error {
-	_, err := db.conn.Exec("DELETE FROM users WHERE id=?", id)
-	return err
+	tx, err := db.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = guardAdmin(tx, id, "", true); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("DELETE FROM users WHERE id=?", id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // --- Record Queries ---
@@ -274,6 +322,14 @@ type Record struct {
 	ProviderConfig string     `json:"provider_config"`
 	Enabled        bool       `json:"enabled"`
 	CreatedAt      time.Time  `json:"created_at"`
+	CurrentIPv4    *string    `json:"current_ipv4"`
+	CurrentIPv6    *string    `json:"current_ipv6"`
+	StatusIPv4     string     `json:"status_ipv4"`
+	StatusIPv6     string     `json:"status_ipv6"`
+	MessageIPv4    string     `json:"message_ipv4"`
+	MessageIPv6    string     `json:"message_ipv6"`
+	LastSuccess    *time.Time `json:"last_success"`
+	HasCredentials bool       `json:"has_credentials"`
 }
 
 func (db *DB) CreateRecord(r *Record) (int64, error) {
@@ -288,73 +344,38 @@ func (db *DB) CreateRecord(r *Record) (int64, error) {
 }
 
 func (db *DB) GetRecord(id int) (*Record, error) {
-	r := &Record{}
-	err := db.conn.QueryRow(
-		`SELECT id, provider, domain, owner, ip_version, current_ip, status, message,
-		        last_update, last_ban, provider_config, enabled, created_at
-		 FROM records WHERE id = ?`, id).
-		Scan(&r.ID, &r.Provider, &r.Domain, &r.Owner, &r.IPVersion, &r.CurrentIP,
-			&r.Status, &r.Message, &r.LastUpdate, &r.LastBan, &r.ProviderConfig, &r.Enabled, &r.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	return scanRecord(db.conn.QueryRow("SELECT "+recordColumns+" FROM records WHERE id=?", id))
 }
 
-func (db *DB) ListRecords() ([]Record, error) {
-	rows, err := db.conn.Query(
-		`SELECT id, provider, domain, owner, ip_version, current_ip, status, message,
-		        last_update, last_ban, provider_config, enabled, created_at
-		 FROM records ORDER BY id`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var records []Record
-	for rows.Next() {
-		var r Record
-		if err := rows.Scan(&r.ID, &r.Provider, &r.Domain, &r.Owner, &r.IPVersion, &r.CurrentIP,
-			&r.Status, &r.Message, &r.LastUpdate, &r.LastBan, &r.ProviderConfig, &r.Enabled, &r.CreatedAt); err != nil {
-			return nil, err
-		}
-		records = append(records, r)
-	}
-	return records, rows.Err()
-}
+func (db *DB) ListRecords() ([]Record, error) { return db.records("") }
 
-func (db *DB) ListEnabledRecords() ([]Record, error) {
-	rows, err := db.conn.Query(
-		`SELECT id, provider, domain, owner, ip_version, current_ip, status, message,
-		        last_update, last_ban, provider_config, enabled, created_at
-		 FROM records WHERE enabled = 1 ORDER BY id`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var records []Record
-	for rows.Next() {
-		var r Record
-		if err := rows.Scan(&r.ID, &r.Provider, &r.Domain, &r.Owner, &r.IPVersion, &r.CurrentIP,
-			&r.Status, &r.Message, &r.LastUpdate, &r.LastBan, &r.ProviderConfig, &r.Enabled, &r.CreatedAt); err != nil {
-			return nil, err
-		}
-		records = append(records, r)
-	}
-	return records, rows.Err()
-}
+func (db *DB) ListEnabledRecords() ([]Record, error) { return db.records(" WHERE enabled=1") }
 
 func (db *DB) UpdateRecord(r *Record) error {
-	_, err := db.conn.Exec(
-		`UPDATE records SET provider=?, domain=?, owner=?, ip_version=?, provider_config=?, enabled=? WHERE id=?`,
-		r.Provider, r.Domain, r.Owner, r.IPVersion, r.ProviderConfig, r.Enabled, r.ID)
-	return err
+	tx, err := db.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var changed bool
+	err = tx.QueryRow("SELECT provider<>? OR domain<>? OR owner<>? OR ip_version<>? OR provider_config<>? FROM records WHERE id=?", r.Provider, r.Domain, r.Owner, r.IPVersion, r.ProviderConfig, r.ID).Scan(&changed)
+	if err != nil {
+		return err
+	}
+	if changed {
+		if _, err = tx.Exec("UPDATE records SET status='pending',status_ipv4='pending',status_ipv6='pending',message='',message_ipv4='',message_ipv6='',last_ban=NULL WHERE id=?", r.ID); err != nil {
+			return err
+		}
+	}
+	_, err = tx.Exec("UPDATE records SET provider=?,domain=?,owner=?,ip_version=?,provider_config=?,enabled=? WHERE id=?", r.Provider, r.Domain, r.Owner, r.IPVersion, r.ProviderConfig, r.Enabled, r.ID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (db *DB) UpdateRecordStatus(id int, status, message, currentIP string) error {
-	now := time.Now()
-	_, err := db.conn.Exec(
-		`UPDATE records SET status=?, message=?, current_ip=?, last_update=? WHERE id=?`,
-		status, message, currentIP, now, id)
+	_, err := db.conn.Exec("UPDATE records SET status=?,message=?,current_ip=CASE WHEN ?='' THEN current_ip ELSE ? END,last_update=? WHERE id=?", status, message, currentIP, currentIP, time.Now(), id)
 	return err
 }
 
@@ -442,7 +463,16 @@ func (db *DB) InsertLog(level, source, message string) error {
 	return err
 }
 
-func (db *DB) ListLogs(level string, limit, offset int) ([]LogEntry, int, error) {
+func (db *DB) ListLogs(level string, limit, offset int, search ...string) ([]LogEntry, int, error) {
+	if limit < 1 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	if offset < 0 {
+		offset = 0
+	}
 	var total int
 	countQ := "SELECT COUNT(*) FROM logs"
 	listQ := "SELECT id, level, source, message, created_at FROM logs"
@@ -454,11 +484,21 @@ func (db *DB) ListLogs(level string, limit, offset int) ([]LogEntry, int, error)
 		args = append(args, level)
 	}
 
+	if len(search) > 0 && strings.TrimSpace(search[0]) != "" {
+		sep := " WHERE "
+		if level != "" {
+			sep = " AND "
+		}
+		clause := sep + "(instr(lower(message),lower(?))>0 OR instr(lower(COALESCE(source,'')),lower(?))>0)"
+		countQ += clause
+		listQ += clause
+		args = append(args, search[0], search[0])
+	}
 	if err := db.conn.QueryRow(countQ, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	listQ += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	listQ += " ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?"
 	listArgs := append(args, limit, offset)
 
 	rows, err := db.conn.Query(listQ, listArgs...)
@@ -525,13 +565,15 @@ func (db *DB) AllSettings() (map[string]string, error) {
 // --- Webhooks ---
 
 type Webhook struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	URL       string    `json:"url"`
-	Enabled   bool      `json:"enabled"`
-	Events    string    `json:"events"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         int       `json:"id"`
+	Name       string    `json:"name"`
+	Type       string    `json:"type"`
+	URL        string    `json:"url"`
+	Enabled    bool      `json:"enabled"`
+	Events     string    `json:"events"`
+	CreatedAt  time.Time `json:"created_at"`
+	DisplayURL string    `json:"display_url,omitempty"`
+	HasSecret  bool      `json:"has_secret,omitempty"`
 }
 
 func (db *DB) CreateWebhook(w *Webhook) (int64, error) {
@@ -581,8 +623,8 @@ func (db *DB) DeleteWebhook(id int) error {
 
 func (db *DB) EnabledWebhooksForEvent(event string) ([]Webhook, error) {
 	rows, err := db.conn.Query(
-		"SELECT id, name, type, url, enabled, events, created_at FROM webhooks WHERE enabled=1 AND events LIKE ?",
-		"%"+event+"%")
+		"SELECT id, name, type, url, enabled, events, created_at FROM webhooks WHERE enabled=1 AND instr(','||events||',',?)>0",
+		","+event+",")
 	if err != nil {
 		return nil, err
 	}

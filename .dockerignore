@@ -1,0 +1,9 @@
+.git
+.agents
+.codex
+work
+docs
+screenshots
+web/node_modules
+web/dist
+**/*_test.go

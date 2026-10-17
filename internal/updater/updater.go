@@ -7,63 +7,68 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"ddns-agent/internal/crypto"
 	"ddns-agent/internal/database"
-	"ddns-agent/internal/ipcheck"
 	"ddns-agent/internal/logger"
+	"ddns-agent/internal/netutil"
 	"ddns-agent/internal/provider"
 	"ddns-agent/internal/provider/constants"
+	"ddns-agent/internal/validation"
 )
 
-// ErrRecordDisabled is returned when a refresh is requested for a disabled record.
 var ErrRecordDisabled = errors.New("record is disabled")
 
-// WebhookNotifier is the minimal interface the updater needs to fire notifications.
-type WebhookNotifier interface {
-	Notify(event, message string)
+type WebhookNotifier interface{ Notify(string, string) }
+type IPFetcher interface {
+	IPv4(context.Context) (netip.Addr, error)
+	IPv6(context.Context) (netip.Addr, error)
+	SetHTTPTimeout(time.Duration)
 }
-
 type Service struct {
-	db        *database.DB
-	ipFetcher *ipcheck.Fetcher
-	encryptor *crypto.Encryptor
-	logger    *logger.Logger
-	webhooks  WebhookNotifier
-
-	providerClient atomic.Value // stores *http.Client for DNS provider API calls
-	periodNs       int64        // update loop interval in nanoseconds; read/written atomically
-	cooldownNs     int64        // cooldown duration in nanoseconds; read/written atomically
-
-	mu    sync.Mutex   // serialises updateAll and ForceUpdateRecord
-	force chan struct{} // buffered(1); sending triggers an immediate updateAll in Start
+	db             *database.DB
+	ipFetcher      IPFetcher
+	encryptor      *crypto.Encryptor
+	logger         *logger.Logger
+	webhooks       WebhookNotifier
+	providerClient atomic.Pointer[http.Client]
+	periodNs       atomic.Int64
+	cooldownNs     atomic.Int64
+	gate           sync.RWMutex
+	manual         chan int
+	force          chan struct{}
+	reset          chan struct{}
+	locksMu        sync.Mutex
+	providerLocks  map[string]chan struct{}
+	changed        func()
 }
 
-func New(db *database.DB, ipFetcher *ipcheck.Fetcher, enc *crypto.Encryptor,
-	log *logger.Logger, webhooks WebhookNotifier,
-	period, cooldown, httpTimeout time.Duration) *Service {
-	s := &Service{
-		db:        db,
-		ipFetcher: ipFetcher,
-		encryptor: enc,
-		logger:    log,
-		webhooks:  webhooks,
-		force:     make(chan struct{}, 1),
-	}
-	s.providerClient.Store(&http.Client{Timeout: httpTimeout})
-	s.periodNs = period.Nanoseconds()
-	s.cooldownNs = cooldown.Nanoseconds()
+func New(db *database.DB, ipFetcher IPFetcher, enc *crypto.Encryptor, log *logger.Logger, hooks WebhookNotifier, period, cooldown, timeout time.Duration) *Service {
+	s := &Service{db: db, ipFetcher: ipFetcher, encryptor: enc, logger: log, webhooks: hooks, manual: make(chan int, 32), force: make(chan struct{}, 1), reset: make(chan struct{}, 1), providerLocks: map[string]chan struct{}{}}
+	s.providerClient.Store(netutil.NewClient(timeout))
+	s.periodNs.Store(int64(period))
+	s.cooldownNs.Store(int64(cooldown))
 	return s
 }
-
-func (s *Service) providerHTTP() *http.Client {
-	return s.providerClient.Load().(*http.Client)
+func (s *Service) SetChanged(fn func()) { s.changed = fn }
+func (s *Service) notifyChanged() {
+	if s.changed != nil {
+		s.changed()
+	}
 }
-
-// SetHTTPTimeout hot-reloads timeouts for IP discovery and DNS provider API calls.
+func (s *Service) Exclusive(fn func() error) error {
+	s.gate.Lock()
+	defer s.gate.Unlock()
+	err := fn()
+	if err == nil {
+		s.notifyChanged()
+	}
+	return err
+}
 func (s *Service) SetHTTPTimeout(d time.Duration) {
 	if d < time.Second {
 		d = time.Second
@@ -71,76 +76,28 @@ func (s *Service) SetHTTPTimeout(d time.Duration) {
 	if d > 15*time.Minute {
 		d = 15 * time.Minute
 	}
-	s.providerClient.Store(&http.Client{Timeout: d})
-	if s.ipFetcher != nil {
-		s.ipFetcher.SetHTTPTimeout(d)
+	old := s.providerClient.Swap(netutil.NewClient(d))
+	if old != nil {
+		old.CloseIdleConnections()
 	}
-	s.logger.Info("updater", "HTTP client timeout set to %s", d)
+	s.ipFetcher.SetHTTPTimeout(d)
 }
-
-func (s *Service) period() time.Duration {
-	return time.Duration(atomic.LoadInt64(&s.periodNs))
-}
-
-// SetPeriod hot-reloads the interval between automatic IP checks.
 func (s *Service) SetPeriod(d time.Duration) {
-	if d < time.Second {
-		d = time.Second
+	if d < time.Minute {
+		d = time.Minute
 	}
-	atomic.StoreInt64(&s.periodNs, d.Nanoseconds())
-	s.logger.Info("updater", "update interval set to %s", d)
+	s.periodNs.Store(int64(d))
+	select {
+	case s.reset <- struct{}{}:
+	default:
+	}
 }
-
-// SetCooldown hot-reloads the minimum time between successful updates for the same record.
 func (s *Service) SetCooldown(d time.Duration) {
 	if d < 0 {
 		d = 0
 	}
-	atomic.StoreInt64(&s.cooldownNs, d.Nanoseconds())
-	s.logger.Info("updater", "cooldown period set to %s", d)
+	s.cooldownNs.Store(int64(d))
 }
-
-func (s *Service) cooldown() time.Duration {
-	return time.Duration(atomic.LoadInt64(&s.cooldownNs))
-}
-
-func (s *Service) Start(ctx context.Context) {
-	p := s.period()
-	s.logger.Info("updater", "starting update loop with interval %s", p)
-	s.updateAll(ctx)
-
-	timer := time.NewTimer(p)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			s.logger.Info("updater", "shutting down")
-			return
-		case <-timer.C:
-			s.updateAll(ctx)
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			timer.Reset(s.period())
-		case <-s.force:
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			s.updateAll(ctx)
-			timer.Reset(s.period())
-		}
-	}
-}
-
-// TriggerUpdate signals the update loop to run immediately.
-// Returns true if the signal was queued, false if an update is already pending.
 func (s *Service) TriggerUpdate() bool {
 	select {
 	case s.force <- struct{}{}:
@@ -149,32 +106,88 @@ func (s *Service) TriggerUpdate() bool {
 		return false
 	}
 }
-
-// ForceUpdateRecord immediately updates a single record, bypassing the normal loop.
-func (s *Service) ForceUpdateRecord(ctx context.Context, recordID int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	rec, err := s.db.GetRecord(recordID)
+func (s *Service) Start(ctx context.Context) {
+	s.updateAll(ctx)
+	timer := time.NewTimer(time.Duration(s.periodNs.Load()))
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case id := <-s.manual:
+			_ = s.ForceUpdateRecord(ctx, id)
+		case <-s.reset:
+		case <-s.force:
+			s.updateAll(ctx)
+		case <-timer.C:
+			s.updateAll(ctx)
+		}
+		timer.Reset(time.Duration(s.periodNs.Load()))
+	}
+}
+func (s *Service) providerLock(ctx context.Context, name string) (func(), error) {
+	s.locksMu.Lock()
+	ch := s.providerLocks[name]
+	if ch == nil {
+		ch = make(chan struct{}, 1)
+		s.providerLocks[name] = ch
+	}
+	s.locksMu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+func families(version string) []string {
+	switch version {
+	case "ipv6":
+		return []string{"ipv6"}
+	case "dual", "both":
+		return []string{"ipv4", "ipv6"}
+	default:
+		return []string{"ipv4"}
+	}
+}
+func (s *Service) ForceUpdateRecord(ctx context.Context, id int) error {
+	s.gate.RLock()
+	defer s.gate.RUnlock()
+	rec, err := s.db.GetRecord(id)
 	if err != nil {
-		return fmt.Errorf("record not found: %w", err)
+		return err
 	}
 	if !rec.Enabled {
 		return ErrRecordDisabled
 	}
-
-	ip, err := s.getIPForVersion(ctx, rec.IPVersion)
+	release, err := s.providerLock(ctx, rec.Provider)
 	if err != nil {
-		return fmt.Errorf("fetching IP: %w", err)
+		return err
 	}
-
-	return s.updateRecord(ctx, rec, ip)
+	defer release()
+	var errs []error
+	for _, family := range families(rec.IPVersion) {
+		ip, err := s.fetch(ctx, family)
+		if err != nil {
+			s.fail(rec, family, "IP detection failed: "+netutil.SafeError(err))
+			errs = append(errs, err)
+			continue
+		}
+		if err = s.updateRecord(ctx, rec, family, ip); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
-
+func (s *Service) fetch(ctx context.Context, family string) (netip.Addr, error) {
+	if family == "ipv6" {
+		return s.ipFetcher.IPv6(ctx)
+	}
+	return s.ipFetcher.IPv4(ctx)
+}
 func (s *Service) updateAll(ctx context.Context) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	s.gate.RLock()
+	defer s.gate.RUnlock()
 	records, err := s.db.ListEnabledRecords()
 	if err != nil {
 		s.logger.Error("updater", "listing records: %v", err)
@@ -183,176 +196,154 @@ func (s *Service) updateAll(ctx context.Context) {
 	if len(records) == 0 {
 		return
 	}
-
-	needV4, needV6 := false, false
-	for _, r := range records {
-		switch r.IPVersion {
-		case "ipv4":
-			needV4 = true
-		case "ipv6":
-			needV6 = true
-		case "dual", "both": // "both" is a legacy option value
-			needV4 = true
-			needV6 = true
+	need := map[string]bool{}
+	for _, rec := range records {
+		for _, family := range families(rec.IPVersion) {
+			need[family] = true
 		}
 	}
-
-	var ipv4, ipv6 netip.Addr
-
-	if needV4 {
-		ipv4, err = s.ipFetcher.IPv4(ctx)
-		if err != nil {
-			s.logger.Error("updater", "fetching IPv4: %v", err)
-		} else {
-			s.logger.Info("updater", "current public IPv4: %s", ipv4)
+	ips := map[string]netip.Addr{}
+	ipErrors := map[string]error{}
+	for _, family := range []string{"ipv4", "ipv6"} {
+		if need[family] {
+			ips[family], ipErrors[family] = s.fetch(ctx, family)
 		}
 	}
-	if needV6 {
-		ipv6, err = s.ipFetcher.IPv6(ctx)
-		if err != nil {
-			s.logger.Warn("updater", "fetching IPv6: %v", err)
-		} else {
-			s.logger.Info("updater", "current public IPv6: %s", ipv6)
+	var wg sync.WaitGroup
+	slots := make(chan struct{}, 4)
+	for _, rec := range records {
+		select {
+		case slots <- struct{}{}:
+		case <-ctx.Done():
+			wg.Wait()
+			return
 		}
+		wg.Add(1)
+		go func(rec database.Record) {
+			defer wg.Done()
+			defer func() { <-slots }()
+			release, err := s.providerLock(ctx, rec.Provider)
+			if err != nil {
+				return
+			}
+			defer release()
+			current, err := s.db.GetRecord(rec.ID)
+			if err != nil || !current.Enabled {
+				return
+			}
+			if current.LastBan != nil && time.Since(*current.LastBan) < time.Hour {
+				return
+			}
+			for _, family := range families(current.IPVersion) {
+				if ctx.Err() != nil {
+					return
+				}
+				if err := ipErrors[family]; err != nil {
+					s.fail(current, family, "IP detection failed: "+netutil.SafeError(err))
+					continue
+				}
+				ip := ips[family]
+				old, status := current.CurrentIPv4, current.StatusIPv4
+				if family == "ipv6" {
+					old, status = current.CurrentIPv6, current.StatusIPv6
+				}
+				if old != nil && *old == ip.String() && status == "success" {
+					continue
+				}
+				if current.LastSuccess != nil && status == "success" && time.Since(*current.LastSuccess) < time.Duration(s.cooldownNs.Load()) {
+					continue
+				}
+				_ = s.updateRecord(ctx, current, family, ip)
+			}
+		}(rec)
 	}
-
-	var updateErrors int
-	updated := 0
-	skippedSameIP := 0
-	for i := range records {
-		rec := &records[i]
-		ip := s.pickIP(rec.IPVersion, ipv4, ipv6)
-		if !ip.IsValid() {
-			continue
-		}
-
-		if rec.CurrentIP != nil && *rec.CurrentIP == ip.String() && rec.Status == "success" {
-			skippedSameIP++
-			continue
-		}
-
-		if !s.shouldUpdate(rec) {
-			continue
-		}
-
-		if err := s.updateRecord(ctx, rec, ip); err != nil {
-			updateErrors++
-		} else {
-			updated++
-		}
-	}
-
-	if updated > 0 {
-		s.logger.Success("updater", "IP updated for %d record(s)", updated)
-	}
-	if skippedSameIP > 0 {
-		s.logger.Info("updater", "IP unchanged for %d record(s), no update needed", skippedSameIP)
-	}
-	if updateErrors > 0 {
-		s.logger.Error("updater", "update failed for %d record(s)", updateErrors)
-	}
+	wg.Wait()
 }
-
-func (s *Service) shouldUpdate(rec *database.Record) bool {
-	if rec.LastUpdate != nil && time.Since(*rec.LastUpdate) < s.cooldown() && rec.Status == "success" {
-		return false
-	}
-	if rec.LastBan != nil && time.Since(*rec.LastBan) < time.Hour {
-		return false
-	}
-	return true
-}
-
-func (s *Service) updateRecord(ctx context.Context, rec *database.Record, ip netip.Addr) error {
-	fqdn := rec.Owner + "." + rec.Domain
+func hostname(rec *database.Record) string {
 	if rec.Owner == "@" || rec.Owner == "" {
-		fqdn = rec.Domain
+		return rec.Domain
 	}
-
-	if err := s.db.UpdateRecordStatus(rec.ID, "updating", "updating...", ""); err != nil {
-		s.logger.Warn("updater", "%s: failed to set status 'updating': %v", fqdn, err)
+	return rec.Owner + "." + rec.Domain
+}
+func (s *Service) fail(rec *database.Record, family, message string) {
+	if err := s.db.UpdateFamily(rec.ID, family, "error", message, ""); err != nil {
+		s.logger.Error("updater", "persisting error for record %d: %v", rec.ID, err)
 	}
-	s.logger.Info("updater", "updating %s (%s) to %s", fqdn, rec.Provider, ip)
-
-	// Attempt to decrypt the stored provider config; fall back to plaintext for
-	// legacy unencrypted rows where decryption will fail harmlessly.
-	configJSON := rec.ProviderConfig
-	if s.encryptor != nil {
-		if dec, err := s.encryptor.Decrypt(configJSON); err == nil {
-			configJSON = dec
-		}
+	s.logger.Error("updater", "%s (%s): %s", hostname(rec), family, message)
+	s.notifyChanged()
+	if s.webhooks != nil {
+		s.webhooks.Notify("error", hostname(rec)+" ("+family+"): "+message)
 	}
-
-	p, err := provider.New(
-		constants.Provider(rec.Provider),
-		json.RawMessage(configJSON),
-		rec.Domain, rec.Owner,
-		constants.IPVersion(rec.IPVersion),
-	)
+}
+func (s *Service) updateRecord(ctx context.Context, rec *database.Record, family string, ip netip.Addr) error {
+	config, err := s.encryptor.OpenConfig(rec.ProviderConfig)
 	if err != nil {
-		msg := fmt.Sprintf("creating provider: %v", err)
-		if dbErr := s.db.UpdateRecordStatus(rec.ID, "error", msg, ""); dbErr != nil {
-			s.logger.Warn("updater", "%s: failed to persist error status: %v", fqdn, dbErr)
-		}
-		s.logger.Error("updater", "%s: %s", fqdn, msg)
-		return fmt.Errorf("%s: %s", fqdn, msg)
+		s.fail(rec, family, "provider credentials cannot be decrypted; restore the original key")
+		return errors.New("credentials unavailable")
 	}
-
-	newIP, err := p.Update(ctx, s.providerHTTP(), ip)
+	p, err := provider.New(constants.Provider(rec.Provider), json.RawMessage(config), rec.Domain, rec.Owner, constants.IPVersion(family))
 	if err != nil {
-		msg := fmt.Sprintf("update failed: %v", err)
-		if dbErr := s.db.UpdateRecordStatus(rec.ID, "error", msg, ""); dbErr != nil {
-			s.logger.Warn("updater", "%s: failed to persist error status: %v", fqdn, dbErr)
+		msg := netutil.Redact(err.Error(), validation.SecretValues(config)...)
+		s.fail(rec, family, msg)
+		return errors.New(msg)
+	}
+	if err = s.db.UpdateFamily(rec.ID, family, "updating", "Updating", ""); err != nil {
+		return err
+	}
+	s.notifyChanged()
+	// Each provider operation has a total budget in addition to per-request timeouts.
+	updateCtx, cancel := context.WithTimeout(ctx, s.providerClient.Load().Timeout*8)
+	defer cancel()
+	newIP, err := p.Update(updateCtx, s.providerClient.Load(), ip)
+	if err == nil && newIP != ip {
+		err = errors.New("provider returned an unexpected address")
+	}
+	if err != nil {
+		message := netutil.Redact(netutil.SafeError(err), validation.SecretValues(config)...)
+		lower := strings.ToLower(message)
+		for _, marker := range []string{"abuse", "authentication", "badauth", "rate limit", "status 429", "http 429", "status 401", "http 401", "status 403", "http 403"} {
+			if strings.Contains(lower, marker) {
+				now := time.Now()
+				_ = s.db.UpdateRecordBan(rec.ID, &now)
+				break
+			}
 		}
-		s.logger.Error("updater", "%s: %s", fqdn, msg)
+		s.fail(rec, family, message)
+		return errors.New(message)
+	}
+	old := rec.CurrentIPv4
+	if family == "ipv6" {
+		old = rec.CurrentIPv6
+	}
+	if err = s.db.UpdateFamily(rec.ID, family, "success", "Synchronized", ip.String()); err != nil {
+		return err
+	}
+	_ = s.db.UpdateRecordBan(rec.ID, nil)
+	if old == nil || *old != ip.String() {
+		if err = s.db.InsertIPHistory(rec.ID, ip.String()); err != nil {
+			s.logger.Warn("updater", "saving IP history: %v", err)
+		}
 		if s.webhooks != nil {
-			s.webhooks.Notify("error", fmt.Sprintf("%s update failed: %v", fqdn, err))
-		}
-		return fmt.Errorf("%s: %s", fqdn, msg)
-	}
-
-	ipStr := newIP.String()
-	oldIP := ""
-	if rec.CurrentIP != nil {
-		oldIP = *rec.CurrentIP
-	}
-
-	if dbErr := s.db.UpdateRecordStatus(rec.ID, "success", "updated to "+ipStr, ipStr); dbErr != nil {
-		s.logger.Warn("updater", "%s: failed to persist success status: %v", fqdn, dbErr)
-	}
-	s.logger.Success("updater", "%s updated to %s", fqdn, ipStr)
-
-	if oldIP != ipStr {
-		if dbErr := s.db.InsertIPHistory(rec.ID, ipStr); dbErr != nil {
-			s.logger.Warn("updater", "%s: failed to insert IP history: %v", fqdn, dbErr)
-		}
-		if s.webhooks != nil {
-			s.webhooks.Notify("ip_change", fmt.Sprintf("%s changed from %s to %s", fqdn, oldIP, ipStr))
+			s.webhooks.Notify("ip_change", fmt.Sprintf("%s (%s) changed to %s", hostname(rec), family, ip))
 		}
 	}
-
+	s.logger.Success("updater", "%s (%s) synchronized to %s", hostname(rec), family, ip)
+	s.notifyChanged()
 	return nil
 }
 
-func (s *Service) getIPForVersion(ctx context.Context, version string) (netip.Addr, error) {
-	switch version {
-	case "ipv6":
-		return s.ipFetcher.IPv6(ctx)
-	default:
-		return s.ipFetcher.IPv4(ctx)
+func (s *Service) RequestUpdate(id int) error {
+	rec, err := s.db.GetRecord(id)
+	if err != nil {
+		return err
 	}
-}
-
-func (s *Service) pickIP(version string, v4, v6 netip.Addr) netip.Addr {
-	switch version {
-	case "ipv6":
-		return v6
-	case "dual", "both":
-		if v4.IsValid() {
-			return v4
-		}
-		return v6
+	if !rec.Enabled {
+		return ErrRecordDisabled
+	}
+	select {
+	case s.manual <- id:
+		return nil
 	default:
-		return v4
+		return errors.New("refresh queue is full")
 	}
 }

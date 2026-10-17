@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,9 +14,9 @@ import (
 )
 
 type porkbunProvider struct {
-	domain       string
-	owner        string
-	ipVersion    constants.IPVersion
+	domain string
+	owner  string
+
 	apiKey       string
 	secretAPIKey string
 }
@@ -32,25 +33,12 @@ func newPorkbun(data json.RawMessage, domain, owner string, ipVersion constants.
 		return nil, fmt.Errorf("porkbun: api_key and secret_api_key are required")
 	}
 	return &porkbunProvider{
-		domain:       domain,
-		owner:        owner,
-		ipVersion:    ipVersion,
+		domain: domain,
+		owner:  owner,
+
 		apiKey:       extra.APIKey,
 		secretAPIKey: extra.SecretAPIKey,
 	}, nil
-}
-
-func (p *porkbunProvider) String() string                  { return string(constants.Porkbun) }
-func (p *porkbunProvider) Domain() string                  { return p.domain }
-func (p *porkbunProvider) Owner() string                   { return p.owner }
-func (p *porkbunProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *porkbunProvider) Proxied() bool                   { return false }
-
-func (p *porkbunProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *porkbunProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -104,12 +92,15 @@ func (p *porkbunProvider) Update(ctx context.Context, client *http.Client, ip ne
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	var body struct {
 		Status  string `json:"status"`
 		Message string `json:"message,omitempty"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 		return netip.Addr{}, fmt.Errorf("decoding response: %w", err)
 	}
 

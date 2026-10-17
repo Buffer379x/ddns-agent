@@ -14,11 +14,11 @@ import (
 )
 
 type luadnsProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	email     string
-	token     string
+	domain string
+	owner  string
+
+	email string
+	token string
 }
 
 func newLuaDNS(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (*luadnsProvider, error) {
@@ -36,24 +36,12 @@ func newLuaDNS(data json.RawMessage, domain, owner string, ipVersion constants.I
 		return nil, fmt.Errorf("luadns: token is required")
 	}
 	return &luadnsProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		email:     s.Email,
-		token:     s.Token,
-	}, nil
-}
+		domain: domain,
+		owner:  owner,
 
-func (p *luadnsProvider) String() string                  { return string(constants.LuaDNS) }
-func (p *luadnsProvider) Domain() string                  { return p.domain }
-func (p *luadnsProvider) Owner() string                   { return p.owner }
-func (p *luadnsProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *luadnsProvider) Proxied() bool                   { return false }
-func (p *luadnsProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
+		email: s.Email,
+		token: s.Token,
+	}, nil
 }
 
 type luadnsRecord struct {
@@ -109,9 +97,12 @@ func (p *luadnsProvider) getZoneID(ctx context.Context, client *http.Client) (in
 		return 0, fmt.Errorf("doing http request: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return 0, err
+	}
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return 0, fmt.Errorf("luadns list zones: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 
@@ -119,7 +110,7 @@ func (p *luadnsProvider) getZoneID(ctx context.Context, client *http.Client) (in
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&zones); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&zones); err != nil {
 		return 0, fmt.Errorf("decoding luadns zones: %w", err)
 	}
 	for _, z := range zones {
@@ -145,16 +136,16 @@ func (p *luadnsProvider) findRecord(ctx context.Context, client *http.Client, zo
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return luadnsRecord{}, fmt.Errorf("luadns list records: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 
 	var records []luadnsRecord
-	if err := json.NewDecoder(resp.Body).Decode(&records); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&records); err != nil {
 		return luadnsRecord{}, fmt.Errorf("decoding luadns records: %w", err)
 	}
 
-	fqdn := p.BuildDomainName() + "."
+	fqdn := domainName(p.domain, p.owner) + "."
 	for _, r := range records {
 		if r.Type == recordType && r.Name == fqdn {
 			return r, nil
@@ -184,7 +175,7 @@ func (p *luadnsProvider) updateLuaDNSRecord(ctx context.Context, client *http.Cl
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readResponse(resp.Body)
 		return fmt.Errorf("luadns update record: HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	return nil

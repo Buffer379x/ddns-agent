@@ -12,9 +12,11 @@ import (
 	"ddns-agent/internal/database"
 	"ddns-agent/internal/logger"
 	"ddns-agent/internal/server/api"
+	apimw "ddns-agent/internal/server/middleware"
 	"ddns-agent/internal/server/sse"
 	"ddns-agent/internal/updater"
 	"ddns-agent/internal/webhook"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -34,18 +36,14 @@ func NewRouter(
 ) http.Handler {
 	r := chi.NewRouter()
 
-	// RealIP must only be trusted when a reverse proxy is in front of the
-	// application. For direct-bind deployments it is a no-op because
-	// X-Forwarded-For will not be present.
-	r.Use(middleware.RealIP)
+	r.Use(security(cfg))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(5))
-	r.Use(corsMiddleware)
 
 	h := api.NewHandler(db, authSvc, updaterSvc, webhookSvc, backupSvc, encryptor, sseBroker, log, webFS, version, cfg)
 
 	loginLimiter := auth.NewRateLimiter(5, time.Minute)
-	apiLimiter := auth.NewRateLimiter(60, time.Minute)
+	apiLimiter := auth.NewRateLimiter(300, time.Minute)
 
 	// Public routes — no auth required.
 	r.Get("/health", h.HealthCheck)
@@ -60,16 +58,17 @@ func NewRouter(
 		r.Post("/api/auth/setup", h.Setup)
 	})
 
-	// SSE stream — auth validated inside the handler via token query param
-	// because EventSource does not support custom request headers.
-	r.Get("/api/events", h.SSEEvents)
+	// SSE uses the session cookie and revalidates active sessions while streaming.
+	r.With(apiLimiter.Middleware, authSvc.AuthMiddleware).Get("/api/events", h.SSEEvents)
 
 	// Protected API routes — all authenticated users.
 	r.Group(func(r chi.Router) {
-		r.Use(authSvc.AuthMiddleware)
 		r.Use(apiLimiter.Middleware)
+		r.Use(authSvc.AuthMiddleware)
 
 		r.Get("/api/auth/me", h.Me)
+		r.Post("/api/auth/logout", h.Logout)
+		r.Post("/api/auth/password", h.ChangePassword)
 		r.Get("/api/records", h.ListRecords)
 		r.Get("/api/providers", h.ListProviders)
 		r.Get("/api/providers/{name}/fields", h.ProviderFields)
@@ -80,10 +79,11 @@ func NewRouter(
 
 	// Admin-only API routes.
 	r.Group(func(r chi.Router) {
-		r.Use(authSvc.AuthMiddleware)
 		r.Use(apiLimiter.Middleware)
-		r.Use(api.AdminOnly)
+		r.Use(authSvc.AuthMiddleware)
+		r.Use(apimw.AdminOnly)
 
+		r.Get("/api/records/{id}", h.GetRecord)
 		r.Post("/api/records", h.CreateRecord)
 		r.Put("/api/records/{id}", h.UpdateRecord)
 		r.Delete("/api/records/{id}", h.DeleteRecord)
@@ -106,6 +106,10 @@ func NewRouter(
 		r.Post("/api/webhooks/{id}/test", h.TestWebhook)
 
 		r.Get("/api/config/export", h.ExportConfig)
+		r.Post("/api/config/export", h.ExportPortable)
+		r.Post("/api/config/preview", h.PreviewImport)
+		r.Get("/api/backup/status", h.BackupStatus)
+		r.Post("/api/backup", h.RunBackup)
 		r.Post("/api/config/import", h.ImportConfig)
 
 		r.Post("/api/database/check", h.DatabaseCheck)
@@ -120,6 +124,7 @@ func NewRouter(
 			path = "index.html"
 		}
 		if _, err := fs.Stat(webFS, path); err == nil {
+			w.Header().Set("Cache-Control", "no-cache")
 			fileServer.ServeHTTP(w, r)
 			return
 		}
@@ -134,17 +139,4 @@ func NewRouter(
 	})
 
 	return r
-}
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }

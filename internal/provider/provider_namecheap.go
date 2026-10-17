@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
-
-	"ddns-agent/internal/provider/constants"
 )
 
 type namecheapProvider struct {
@@ -34,19 +31,6 @@ func newNamecheap(data json.RawMessage, domain, owner string) (Provider, error) 
 		owner:    owner,
 		password: extra.Password,
 	}, nil
-}
-
-func (p *namecheapProvider) String() string                  { return string(constants.Namecheap) }
-func (p *namecheapProvider) Domain() string                  { return p.domain }
-func (p *namecheapProvider) Owner() string                   { return p.owner }
-func (p *namecheapProvider) IPVersion() constants.IPVersion   { return constants.IPv4 }
-func (p *namecheapProvider) Proxied() bool                   { return false }
-
-func (p *namecheapProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *namecheapProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -81,8 +65,11 @@ func (p *namecheapProvider) Update(ctx context.Context, client *http.Client, ip 
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := readResponse(resp.Body)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("reading response: %w", err)
 	}

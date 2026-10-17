@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,10 +14,10 @@ import (
 )
 
 type desecProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	token     string
+	domain string
+	owner  string
+
+	token string
 }
 
 func newDeSEC(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -30,24 +31,11 @@ func newDeSEC(data json.RawMessage, domain, owner string, ipVersion constants.IP
 		return nil, fmt.Errorf("desec: token is required")
 	}
 	return &desecProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		token:     extra.Token,
+		domain: domain,
+		owner:  owner,
+
+		token: extra.Token,
 	}, nil
-}
-
-func (p *desecProvider) String() string                  { return string(constants.DeSEC) }
-func (p *desecProvider) Domain() string                  { return p.domain }
-func (p *desecProvider) Owner() string                   { return p.owner }
-func (p *desecProvider) IPVersion() constants.IPVersion   { return p.ipVersion }
-func (p *desecProvider) Proxied() bool                   { return false }
-
-func (p *desecProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 func (p *desecProvider) Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error) {
@@ -93,13 +81,16 @@ func (p *desecProvider) Update(ctx context.Context, client *http.Client, ip neti
 		return netip.Addr{}, err
 	}
 	defer resp.Body.Close()
+	if err := responseStatus(resp); err != nil {
+		return netip.Addr{}, err
+	}
 
 	switch resp.StatusCode {
 	case http.StatusOK:
 		var body struct {
 			Records []string `json:"records"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 			return netip.Addr{}, fmt.Errorf("decoding response: %w", err)
 		}
 		if len(body.Records) > 0 {

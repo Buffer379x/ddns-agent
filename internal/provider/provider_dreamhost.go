@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -12,10 +13,10 @@ import (
 )
 
 type dreamhostProvider struct {
-	domain    string
-	owner     string
-	ipVersion constants.IPVersion
-	key       string
+	domain string
+	owner  string
+
+	key string
 }
 
 func newDreamhost(data json.RawMessage, domain, owner string, ipVersion constants.IPVersion) (Provider, error) {
@@ -29,24 +30,11 @@ func newDreamhost(data json.RawMessage, domain, owner string, ipVersion constant
 		return nil, fmt.Errorf("dreamhost: key is required")
 	}
 	return &dreamhostProvider{
-		domain:    domain,
-		owner:     owner,
-		ipVersion: ipVersion,
-		key:       extra.Key,
+		domain: domain,
+		owner:  owner,
+
+		key: extra.Key,
 	}, nil
-}
-
-func (p *dreamhostProvider) String() string                    { return string(constants.Dreamhost) }
-func (p *dreamhostProvider) Domain() string                    { return p.domain }
-func (p *dreamhostProvider) Owner() string                     { return p.owner }
-func (p *dreamhostProvider) IPVersion() constants.IPVersion    { return p.ipVersion }
-func (p *dreamhostProvider) Proxied() bool                     { return false }
-
-func (p *dreamhostProvider) BuildDomainName() string {
-	if p.owner == "@" || p.owner == "" {
-		return p.domain
-	}
-	return p.owner + "." + p.domain
 }
 
 type dreamhostAPIResponse struct {
@@ -96,7 +84,7 @@ func (p *dreamhostProvider) apiCall(ctx context.Context, client *http.Client, cm
 	}
 
 	var result dreamhostAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 	if result.Result != "success" {
@@ -132,7 +120,7 @@ func (p *dreamhostProvider) listRecords(ctx context.Context, client *http.Client
 	}
 
 	var result dreamhostListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 	if result.Result != "success" {
@@ -146,7 +134,7 @@ func (p *dreamhostProvider) Update(ctx context.Context, client *http.Client, ip 
 	if ip.Is6() {
 		recordType = constants.AAAA
 	}
-	fqdn := p.BuildDomainName()
+	fqdn := domainName(p.domain, p.owner)
 
 	records, err := p.listRecords(ctx, client)
 	if err != nil {

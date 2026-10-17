@@ -11,12 +11,6 @@ import (
 )
 
 type Provider interface {
-	String() string
-	Domain() string
-	Owner() string
-	BuildDomainName() string
-	IPVersion() constants.IPVersion
-	Proxied() bool
 	Update(ctx context.Context, client *http.Client, ip netip.Addr) (netip.Addr, error)
 }
 
