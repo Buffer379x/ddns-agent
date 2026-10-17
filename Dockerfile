@@ -17,7 +17,7 @@ RUN VERSION=$(cat VERSION) && CGO_ENABLED=1 go build \
     -tags 'sqlite_omit_load_extension netgo osusergo' -o /ddns-agent ./cmd/ddns-agent
 
 FROM alpine:3.24.2
-RUN apk add --no-cache ca-certificates tzdata su-exec
+RUN apk upgrade --no-cache && apk add --no-cache ca-certificates tzdata su-exec
 COPY --from=builder /ddns-agent /ddns-agent
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod 755 /docker-entrypoint.sh

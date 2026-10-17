@@ -2,6 +2,8 @@
 
 Corrects Vultr pagination introduced in v1.1.0: the API's next-page value is an opaque cursor, not a URL. Records on later pages now update correctly. Repeated cursors stop safely without creating records, and URL-like cursor values cannot change the request destination. Regression tests and the full quality pipeline cover the fix.
 
+The runtime image also applies Alpine package updates during the build, including zlib's fix for CVE-2026-85091. The final image is checked separately from Go's reachability analysis.
+
 The interface and database schema are unchanged from v1.1.0. Existing v1.1.0 installations can update the image and retain their data volume. Source, binary and image versions are 1.1.1; the UI reads the running server's version.
 
 Images: `ghcr.io/buffer379x/ddns-agent:v1.1.1`, `:1.1.1`, and `:latest` (Linux AMD64 and ARM64).
