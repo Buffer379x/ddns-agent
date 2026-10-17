@@ -8,7 +8,9 @@ A self-hosted dynamic DNS updater with an integrated web panel. Go, SQLite and a
 [![Quality](https://github.com/Buffer379x/ddns-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Buffer379x/ddns-agent/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/Buffer379x/ddns-agent)](LICENSE)
 
-## What's new in v1.1.0
+## What's new in v1.1.x
+
+Use **v1.1.1**: it corrects Vultr record pagination in v1.1.0. The interface and upgrade process are unchanged.
 
 - Refreshed overview, searchable hostnames, activity, users, notification settings and recovery tools. Responsive layouts, keyboard-accessible native dialogs, light/dark/system themes and German/English translations.
 - Independent IPv4 and IPv6 updates and error states. A failed family is retried without discarding the last successful address.
@@ -45,7 +47,7 @@ Screenshots come from the running v1.1.0 app with synthetic hostnames, documenta
 ```yaml
 services:
   ddns-agent:
-    image: ghcr.io/buffer379x/ddns-agent:v1.1.0
+    image: ghcr.io/buffer379x/ddns-agent:v1.1.1
     container_name: ddns-agent
     restart: unless-stopped
     ports:
