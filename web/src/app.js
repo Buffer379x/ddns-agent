@@ -17,7 +17,7 @@ const state = {
     { code: "en", name: "English" },
   ],
   user: null,
-  version: "1.1.0",
+  version: "…",
   page: "overview",
   theme:
     localStorage.getItem("ddns.theme") ||

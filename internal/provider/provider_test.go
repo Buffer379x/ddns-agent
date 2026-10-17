@@ -241,3 +241,56 @@ func TestHetznerNeverReplacesAMultiAddressRRSet(t *testing.T) {
 		t.Fatal("ambiguous RRSet was accepted")
 	}
 }
+
+func TestVultrFollowsOpaqueCursorWithoutCreatingDuplicate(t *testing.T) {
+	p, _ := newVultr(json.RawMessage(`{"token":"private"}`), "example.net", "home", constants.IPv4)
+	calls := 0
+	written := false
+	cursor := "bmV4dF9fMTMxOTgxNQ=="
+	client := &http.Client{Transport: mockTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		if r.URL.Path == "/v2/domains/example.net/records" {
+			if r.Method != "GET" {
+				t.Fatal("created a duplicate record")
+			}
+			if calls == 1 {
+				return response(200, `{"records":[],"meta":{"total":101,"links":{"next":"bmV4dF9fMTMxOTgxNQ==","prev":""}}}`), nil
+			}
+			if r.URL.Query().Get("cursor") != cursor {
+				t.Fatal("cursor was not forwarded as a query parameter")
+			}
+			return response(200, `{"records":[{"id":"existing","name":"home","type":"A"}],"meta":{"links":{"next":""}}}`), nil
+		}
+		if r.URL.Path == "/v2/domains/example.net/records/existing" && r.Method == "PATCH" {
+			written = true
+			return response(204, ""), nil
+		}
+		t.Fatal("unexpected request", r.Method, r.URL)
+		return nil, nil
+	})}
+	if _, err := p.Update(context.Background(), client, netip.MustParseAddr("203.0.113.5")); err != nil {
+		t.Fatal(err)
+	}
+	if !written || calls != 3 {
+		t.Fatalf("record was not updated: writes=%v calls=%d", written, calls)
+	}
+}
+
+func TestVultrRepeatedCursorStopsWithoutWriting(t *testing.T) {
+	p, _ := newVultr(json.RawMessage(`{"token":"private"}`), "example.net", "home", constants.IPv4)
+	calls := 0
+	cursor := "https://other.example/records?token=opaque"
+	client := &http.Client{Transport: mockTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		if r.Method != "GET" || r.URL.Host != "api.vultr.com" || r.URL.Path != "/v2/domains/example.net/records" {
+			t.Fatal("cursor changed the destination or caused a write")
+		}
+		if calls == 2 && r.URL.Query().Get("cursor") != cursor {
+			t.Fatal("cursor was not treated as an opaque token")
+		}
+		return response(200, `{"records":[],"meta":{"links":{"next":"https://other.example/records?token=opaque"}}}`), nil
+	})}
+	if _, err := p.Update(context.Background(), client, netip.MustParseAddr("203.0.113.5")); err == nil || calls != 2 {
+		t.Fatalf("repeated cursor was not stopped: calls=%d error=%v", calls, err)
+	}
+}
