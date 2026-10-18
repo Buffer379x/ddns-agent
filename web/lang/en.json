@@ -199,5 +199,8 @@
   "Download": "Download",
   "A secure and portable home for your DNS.": "A secure and portable home for your DNS.",
   "Select a provider": "Select a provider",
-  "Backup failed": "Backup failed"
+  "Backup failed": "Backup failed",
+  "Toggle light/dark theme": "Toggle light/dark theme",
+  "Search activity": "Search activity",
+  "No active hostnames": "No active hostnames"
 }

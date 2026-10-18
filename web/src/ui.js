@@ -16,13 +16,22 @@ const paths = {
   alert: "M12 3l10 18H2z M12 9v4 M12 17h.01",
   logout: "M9 4H4v16h5 M10 12h11 M17 8l4 4-4 4",
   close: "M6 6l12 12 M18 6L6 18",
-  lock: "M5 10h14v11H5z M8 10V6a4 4 0 0 1 8 0v4",
   search: "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M15 15l6 6",
+  theme: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 3v18 M12 7a5 5 0 0 1 0 10",
 };
 export const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name] || paths.records}"/></svg>`;
 export const button = (label, action, id = "", variant = "", symbol = "") =>
   `<button type="button" class="${variant}" data-action="${action}" ${id !== "" ? `data-id="${h(id)}"` : ""}>${symbol ? icon(symbol) : ""}${h(t(label))}</button>`;
+export const iconButton = (label, action, symbol) =>
+  `<button type="button" class="icon-button" data-action="${action}" aria-label="${h(t(label))}" title="${h(t(label))}">${icon(symbol)}</button>`;
+export const searchField = (
+  name,
+  value,
+  placeholder,
+  { submit = false } = {},
+) =>
+  `<div class="search"><label for="search-${h(name)}">${h(t("Search"))}</label><div>${submit ? `<button type="submit" class="search-submit" aria-label="${h(t("Search"))}" title="${h(t("Search"))}">${icon("search")}</button>` : icon("search")}<input id="search-${h(name)}" name="${h(name)}" data-filter="${h(name)}" value="${h(value)}" placeholder="${h(t(placeholder))}" type="search"></div></div>`;
 export function field(name, label, value = "", opts = {}) {
   const {
     type = "text",

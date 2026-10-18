@@ -1,16 +1,16 @@
 :root {
   color-scheme: light;
-  --bg: #f5f8f9;
+  --bg: #f5f7fb;
   --panel: #fff;
-  --nav: #f0f5f5;
-  --text: #1b3038;
-  --muted: #5e727b;
-  --line: #dce6e8;
-  --accent: #007e78;
-  --accent-soft: #e0f3ee;
+  --nav: #eef3f9;
+  --text: #23354b;
+  --muted: #60738b;
+  --line: #dce4ef;
+  --accent: #2c6da3;
+  --accent-soft: #e5effa;
   --error: #b23342;
   --error-soft: #fff1f2;
-  --shadow: 0 12px 40px #1c424318;
+  --shadow: 0 12px 40px #193b6418;
   font:
     14px/1.55 -apple-system,
     BlinkMacSystemFont,
@@ -19,14 +19,14 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #101c23;
-  --panel: #16262e;
-  --nav: #12222a;
-  --text: #e3eef1;
-  --muted: #a1b7c0;
-  --line: #2a414b;
-  --accent: #6ad6bf;
-  --accent-soft: #153d38;
+  --bg: #101a29;
+  --panel: #172438;
+  --nav: #132034;
+  --text: #e5eef9;
+  --muted: #a9bbd1;
+  --line: #2b415d;
+  --accent: #8abcf0;
+  --accent-soft: #203c5c;
   --error: #ff9aaa;
   --error-soft: #35242c;
   --shadow: 0 12px 40px #0004;
@@ -34,14 +34,14 @@
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] {
     color-scheme: dark;
-    --bg: #101c23;
-    --panel: #16262e;
-    --nav: #12222a;
-    --text: #e3eef1;
-    --muted: #a1b7c0;
-    --line: #2a414b;
-    --accent: #6ad6bf;
-    --accent-soft: #153d38;
+    --bg: #101a29;
+    --panel: #172438;
+    --nav: #132034;
+    --text: #e5eef9;
+    --muted: #a9bbd1;
+    --line: #2b415d;
+    --accent: #8abcf0;
+    --accent-soft: #203c5c;
     --error: #ff9aaa;
     --error-soft: #35242c;
     --shadow: 0 12px 40px #0004;
@@ -144,6 +144,11 @@ textarea {
   background: var(--panel);
   padding: 10px 11px;
   outline-offset: 2px;
+}
+input,
+select {
+  height: 46px;
+  line-height: 1.5;
 }
 input[type="checkbox"] {
   width: 18px;
@@ -251,14 +256,13 @@ small {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.role {
-  font-size: 12px;
-  color: var(--muted);
-  margin-right: 6px;
+  min-width: 0;
 }
 .icon-button {
-  font-size: 12px;
+  width: 40px;
+  height: 40px;
+  padding: 10px;
+  flex-shrink: 0;
   border-color: transparent;
   background: transparent;
 }
@@ -273,6 +277,7 @@ small {
   background: var(--nav);
   border-right: 1px solid var(--line);
   padding: 25px 15px;
+  min-width: 0;
 }
 .sidebar nav {
   display: flex;
@@ -306,8 +311,9 @@ small {
   display: flex;
   gap: 10px;
   align-items: center;
-  margin-top: auto;
-  padding: 50px 10px 6px;
+  margin-top: 20px;
+  padding: 18px 10px 6px;
+  border-top: 1px solid var(--line);
   min-width: 0;
 }
 .account div {
@@ -649,12 +655,13 @@ table code {
   margin: 0;
 }
 .toolbar select {
+  width: 170px;
   min-width: 150px;
 }
 .toolbar .field {
   min-width: 125px;
 }
-.search > span {
+.search > label {
   display: block;
   font-size: 11px;
   color: var(--muted);
@@ -666,7 +673,8 @@ table code {
 .search .icon {
   position: absolute;
   left: 12px;
-  top: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 16px;
   height: 16px;
   color: var(--muted);
@@ -674,8 +682,23 @@ table code {
 .search input {
   padding-left: 37px;
 }
+.search-submit {
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  width: 35px;
+  height: 44px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+}
+.search-submit .icon {
+  position: static;
+  transform: none;
+}
 .toolbar > button {
-  min-height: 41px;
+  min-height: 46px;
+  min-width: 136px;
 }
 .log-entry {
   display: grid;
@@ -776,9 +799,6 @@ table code {
 .tabs button[aria-selected="true"] {
   border-color: var(--accent);
   color: var(--accent);
-}
-.settings-panel {
-  max-width: 1000px;
 }
 .settings-panel h2 {
   margin-bottom: 8px;
@@ -916,7 +936,7 @@ dialog {
   box-shadow: var(--shadow);
 }
 dialog::backdrop {
-  background: #0c202b91;
+  background: #0c1b3091;
   backdrop-filter: blur(3px);
 }
 .dialog-heading {
@@ -988,11 +1008,19 @@ footer {
 }
 .live-state {
   border: 0;
-  padding: 0;
+  padding: 8px;
+  min-height: 40px;
   background: none;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   font-weight: 400;
+  min-width: 0;
+}
+#live-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
 }
 .live-dot {
   display: inline-block;
@@ -1000,6 +1028,7 @@ footer {
   height: 6px;
   border-radius: 50%;
   background: var(--muted);
+  flex-shrink: 0;
 }
 .live-dot.connected {
   background: var(--accent);
@@ -1012,8 +1041,8 @@ footer {
 }
 .login-brand {
   position: relative;
-  background: #122e39;
-  color: #f4fbfa;
+  background: #16324f;
+  color: #f4f8ff;
   padding: 10vh 6vw 6vh;
   overflow: hidden;
   display: flex;
@@ -1022,7 +1051,7 @@ footer {
   isolation: isolate;
 }
 .login-brand > .eyebrow {
-  color: #9ebcc4;
+  color: #a4c1df;
   margin-top: 30px;
   font-size: 11px;
 }
@@ -1034,12 +1063,12 @@ footer {
   margin: 10px 0 25px;
 }
 .login-brand > p {
-  color: #abc6cf;
+  color: #b1c9e2;
   max-width: 320px;
   font-size: 16px;
 }
 .login-brand small {
-  color: #abc6cf;
+  color: #b1c9e2;
   margin-top: auto;
   padding-top: 210px;
 }
@@ -1055,7 +1084,7 @@ footer {
 }
 .network-art span {
   position: absolute;
-  border: 1px solid #65bea14a;
+  border: 1px solid #78b2ed4a;
   border-radius: 50%;
   width: 300px;
   height: 300px;
@@ -1073,17 +1102,17 @@ footer {
   height: 120px;
   left: 130px;
   top: 90px;
-  background: #49ae9721;
+  background: #70a9e221;
 }
 .network-art i {
   position: absolute;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #6ce3bd;
+  background: #88c2ff;
   left: 180px;
   top: 140px;
-  box-shadow: 0 0 70px #6ce3bd;
+  box-shadow: 0 0 70px #88c2ff;
 }
 .login-layout main#main {
   padding: 40px;
@@ -1171,7 +1200,7 @@ footer {
 }
 @media (max-width: 800px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
     padding: 8px 14px;
@@ -1189,18 +1218,12 @@ footer {
     white-space: nowrap;
   }
   .account {
-    display: none;
+    margin: 8px 4px 0;
+    padding: 10px 8px;
   }
   .topbar {
     padding: 0 22px;
     height: 68px;
-  }
-  .role {
-    display: none;
-  }
-  .top-tools .icon-button {
-    font-size: 0;
-    padding: 8px;
   }
   .top-tools .icon {
     width: 18px;
@@ -1426,6 +1449,7 @@ footer {
     min-width: 100px;
   }
   .toolbar select {
+    width: 100%;
     min-width: 0;
   }
   .toolbar > button {
@@ -1506,7 +1530,11 @@ footer {
     font-size: 8px;
   }
   .live-state {
-    font-size: 9px;
+    font-size: 11px;
+    padding: 6px;
+  }
+  #live-label {
+    max-width: 65px;
   }
   input,
   select,
@@ -1525,6 +1553,15 @@ footer {
   }
   .appearance {
     gap: 12px;
+  }
+}
+@media (max-width: 400px) {
+  .version {
+    display: none;
+  }
+  .sidebar nav a {
+    padding: 8px 6px;
+    font-size: 9px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
