@@ -1,7 +1,7 @@
 # Upgrade from 1.0.x to 1.1.x
 
 1. Stop the old container. Make an offline copy of its **entire** data directory, including `ddns-agent.db`, `.key`, any `-wal`/`-shm` files, backups and logs. Also retain externally supplied `DDNS_ENCRYPTION_KEY`/`DDNS_JWT_SECRET` values in your secret store. A database without its matching encryption key cannot recover provider credentials.
-2. Update the image to `ghcr.io/buffer379x/ddns-agent:v1.1.1` and retain the same dedicated data volume and encryption configuration. Never substitute a new key for a damaged existing key; startup now fails instead of destroying the old key file.
+2. Update the image to `ghcr.io/buffer379x/ddns-agent:v1.1.2` and retain the same dedicated data volume and encryption configuration. Never substitute a new key for a damaged existing key; startup now fails instead of destroying the old key file.
 3. The default container entrypoint adjusts ownership within this app's dedicated data directory, then starts the app as UID/GID 65532. For Unraid, set `DDNS_UID=99` and `DDNS_GID=100` if that matches your appdata ownership. When using Docker `--user`, prepare writable directory/file permissions yourself; the entrypoint does not change ownership in that mode. Do not mount a directory shared with unrelated applications.
 4. Start the new container and check its logs and health status. Migrations preserve accounts, hostnames, encrypted credentials and webhook subscriptions. Legacy plaintext configuration/notification fields are encrypted during migration. Existing single-address data is placed in the appropriate IPv4/IPv6 field; an unknown second family remains pending until successfully updated.
 5. Sign in again. Old stateless JWTs are intentionally invalidated. A remaining `admin/admin` password requires a change before other API access. Existing non-default passwords remain valid. A fresh installation creates a random password in `/data/bootstrap-password`, removed after its mandatory change.
@@ -13,7 +13,7 @@
 
 Stop the new container before restoring. Restore the complete **pre-upgrade** directory and matching old image. Do not run both versions against the same writable volume. A migrated database is not a substitute for the offline pre-upgrade copy.
 
-To restore a new local backup into an empty data directory, copy `ddns-agent-<timestamp>.db` as `ddns-agent.db`, and its `*.db.key` companion as `.key`. Restore an externally configured encryption key consistently instead if applicable. Start v1.1.1 and sign in with the users stored in that database. Sessions may require a new login; their signing key is separate. Raw-copy recovery backups also require their matching `-wal`/`-shm` companions, when present, and should be restored offline. The repair button recreates missing schema objects; it cannot repair damaged SQLite pages.
+To restore a new local backup into an empty data directory, copy `ddns-agent-<timestamp>.db` as `ddns-agent.db`, and its `*.db.key` companion as `.key`. Restore an externally configured encryption key consistently instead if applicable. Start v1.1.2 and sign in with the users stored in that database. Sessions may require a new login; their signing key is separate. Raw-copy recovery backups also require their matching `-wal`/`-shm` companions, when present, and should be restored offline. The repair button recreates missing schema objects; it cannot repair damaged SQLite pages.
 
 ## API compatibility
 

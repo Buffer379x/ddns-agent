@@ -6,7 +6,15 @@ import {
   filterRecords,
 } from "./utils.js";
 import { t, locale, date } from "./i18n.js";
-import { icon, button, field, stateBadge, empty } from "./ui.js";
+import {
+  icon,
+  button,
+  iconButton,
+  searchField,
+  field,
+  stateBadge,
+  empty,
+} from "./ui.js";
 export const pages = {
   overview: ["Overview", "DNS status and open tasks at a glance."],
   records: ["Hostnames", "Manage your DNS records and check individual hosts."],
@@ -27,7 +35,7 @@ export function appearance(s) {
   })}</div>`;
 }
 export function shell(s) {
-  return `<header class="topbar"><a class="brand" href="#overview"><img src="/img/logo.webp" alt="" width="38" height="38"><strong>DDNS Agent</strong><span class="version">v${h(s.version)}</span></a><div class="top-tools"><span class="role">${h(t(isAdmin(s) ? "Administrator" : "Read-only access"))}</span>${button("Change password", "password", "", "icon-button", "lock")}${button("Sign out", "logout", "", "icon-button", "logout")}</div></header>
+  return `<header class="topbar"><a class="brand" href="#overview"><img src="/img/logo.webp" alt="" width="38" height="38"><strong>DDNS Agent</strong><span class="version">v${h(s.version)}</span></a><div class="top-tools"><button type="button" class="live-state" data-action="live" title="${h(t(s.livePaused ? "Resume live view" : "Pause live view"))}"><span class="live-dot ${s.connected && !s.livePaused ? "connected" : ""}"></span><span id="live-label">${h(t(s.livePaused ? "Live paused" : s.connected ? "Live" : "Reconnecting"))}</span></button>${iconButton("Toggle light/dark theme", "theme", "theme")}${iconButton("Sign out", "logout", "logout")}</div></header>
   <div class="layout"><aside class="sidebar"><nav aria-label="${h(t("Local instance"))}">${Object.entries(
     pages,
   )
@@ -39,12 +47,12 @@ export function shell(s) {
     .join(
       "",
     )}</nav><div class="account"><span class="avatar">${h(s.user.username.slice(0, 1).toUpperCase())}</span><div><strong>${h(s.user.username)}</strong><small>${h(t("Local instance"))}</small></div></div></aside>
-  <main id="main" tabindex="-1"></main></div><footer><span>DDNS Agent · ${h(t("Your network. Within reach."))}</span><button type="button" class="live-state" data-action="live" title="${h(t(s.livePaused ? "Resume live view" : "Pause live view"))}"><span class="live-dot ${s.connected && !s.livePaused ? "connected" : ""}"></span><span id="live-label">${h(t(s.livePaused ? "Live paused" : s.connected ? "Live" : "Reconnecting"))}</span></button></footer>`;
+  <main id="main" tabindex="-1"></main></div><footer><span>DDNS Agent · ${h(t("Your network. Within reach."))}</span></footer>`;
 }
 export function page(s) {
   const [title, subtitle] = pages[s.page];
   let action = "";
-  if (["overview", "records"].includes(s.page) && isAdmin(s))
+  if (s.page === "records" && isAdmin(s))
     action = button("Add hostname", "record-new", "", "primary", "plus");
   if (s.page === "users")
     action = button("Add user", "user-new", "", "primary", "plus");
@@ -54,12 +62,12 @@ function overview(s) {
   const active = s.records.filter((r) => r.enabled),
     errors = active.filter((r) => r.status === "error");
   return `<div class="stats"><div><span>${h(t("Active hostnames"))}</span><strong>${active.length}<small> / ${s.records.length}</small></strong></div><div><span>${h(t("Synchronized"))}</span><strong>${active.filter((r) => r.status === "success").length}</strong></div><div><span>${h(t("Errors"))}</span><strong class="${errors.length ? "text-error" : ""}">${errors.length}</strong></div></div>
-  ${errors.length ? `<div class="attention">${icon("alert")}<div><strong>${h(errors.length === 1 ? t("One hostname needs attention") : errors.length + " " + t("hostnames need attention"))}</strong><p>${h(hostname(errors[0]))} · ${h(errors[0].message || t("Error"))}</p></div>${button("Open details", "record-details", errors[0].id)}</div>` : ""}
-  <section class="panel"><div class="section-heading"><h2>${h(t("Active hostnames"))}</h2>${isAdmin(s) ? button("Check all", "refresh-all", "", "", "refresh") : ""}</div>${recordTable(filterRecords(s.records, "", "all", true), s)}</section>
+  ${errors.length ? `<div class="attention">${icon("alert")}<div><strong>${h(errors.length === 1 ? t("One hostname needs attention") : errors.length + " " + t("hostnames need attention"))}</strong><p>${h(hostname(errors[0]))} · ${h(errors[0].message || t("Error"))}</p></div></div>` : ""}
+  <section class="panel"><div class="section-heading"><h2>${h(t("Active hostnames"))}</h2></div>${recordTable(filterRecords(s.records, "", "all", true), s, { readOnly: true })}</section>
   <section class="panel recent"><div class="section-heading"><h2>${h(t("Recent activity"))}</h2><a href="#logs">${h(t("View activity"))} ${icon("arrow")}</a></div>${logRows(s.recent.slice(0, 4))}</section>`;
 }
 function records(s) {
-  return `<section class="panel"><div class="toolbar"><label class="search"><span>${h(t("Search"))}</span><div>${icon("search")}<input id="record-search" data-filter="recordQuery" value="${h(s.recordQuery)}" placeholder="${h(t("Hostname or provider"))}" type="search"></div></label>${field(
+  return `<section class="panel"><div class="toolbar">${searchField("recordQuery", s.recordQuery, "Hostname or provider")}${field(
     "recordStatus",
     "Status",
     s.recordStatus,
@@ -75,7 +83,8 @@ function records(s) {
     },
   )}${isAdmin(s) ? button("Check all", "refresh-all", "", "", "refresh") : ""}</div><div id="record-table">${recordTable(filterRecords(s.records, s.recordQuery, s.recordStatus), s)}</div></section>`;
 }
-export function recordTable(records, s) {
+export function recordTable(records, s, { readOnly = false } = {}) {
+  if (readOnly && !records.length) return empty("No active hostnames");
   if (!records.length)
     return empty(
       s.records.length ? "No matching hostnames" : "No hostnames yet",
@@ -88,10 +97,10 @@ export function recordTable(records, s) {
           ? button("Add hostname", "record-new", "", "primary", "plus")
           : "",
     );
-  return `<div class="table-scroll"><table class="records-table"><thead><tr>${["Hostname", "Status", "Address", "Actions"].map((l) => `<th scope="col">${h(t(l))}</th>`).join("")}</tr></thead><tbody>${records
+  return `<div class="table-scroll"><table class="records-table"><thead><tr>${["Hostname", "Status", "Address", ...(readOnly ? [] : ["Actions"])].map((l) => `<th scope="col">${h(t(l))}</th>`).join("")}</tr></thead><tbody>${records
     .map(
       (r) =>
-        `<tr><td><button class="text-button hostname" data-action="record-details" data-id="${r.id}">${h(hostname(r))}</button><small>${h(s.providers.find((p) => p.name === r.provider)?.label || r.provider)} <span class="protocol">${families(r).length === 2 ? "IPv4 + IPv6" : r.ip_version === "ipv6" ? "IPv6" : "IPv4"}</span></small></td><td>${stateBadge(recordState(r))}<small title="${h(t("Last successful update"))}">${h(r.last_success ? date(r.last_success) : t("No updates yet"))}</small></td><td><div class="addresses">${families(
+        `<tr><td>${readOnly ? `<strong class="hostname">${h(hostname(r))}</strong>` : `<button class="text-button hostname" data-action="record-details" data-id="${r.id}">${h(hostname(r))}</button>`}<small>${h(s.providers.find((p) => p.name === r.provider)?.label || r.provider)} <span class="protocol">${families(r).length === 2 ? "IPv4 + IPv6" : r.ip_version === "ipv6" ? "IPv6" : "IPv4"}</span></small></td><td>${stateBadge(recordState(r))}<small title="${h(t("Last successful update"))}">${h(r.last_success ? date(r.last_success) : t("No updates yet"))}</small></td><td><div class="addresses">${families(
           r,
         )
           .map(
@@ -100,7 +109,7 @@ export function recordTable(records, s) {
           )
           .join(
             "",
-          )}</div></td><td class="row-actions">${button(isAdmin(s) ? "Edit" : "Details", isAdmin(s) ? "record-edit" : "record-details", r.id)}${isAdmin(s) ? `<details class="action-menu"><summary aria-label="${h(t("Actions"))}: ${h(hostname(r))}">···</summary><div>${button("Check", "record-refresh", r.id)}${button(r.enabled ? "Pause" : "Resume", "record-toggle", r.id)}${button("Delete", "record-delete", r.id, "danger-text")}</div></details>` : ""}</td></tr>`,
+          )}</div></td>${readOnly ? "" : `<td class="row-actions">${button(isAdmin(s) ? "Edit" : "Details", isAdmin(s) ? "record-edit" : "record-details", r.id)}${isAdmin(s) ? `<details class="action-menu"><summary aria-label="${h(t("Actions"))}: ${h(hostname(r))}">···</summary><div>${button("Check", "record-refresh", r.id)}${button(r.enabled ? "Pause" : "Resume", "record-toggle", r.id)}${button("Delete", "record-delete", r.id, "danger-text")}</div></details>` : ""}</td>`}</tr>`,
     )
     .join("")}</tbody></table></div>`;
 }
@@ -109,7 +118,7 @@ export function logRows(entries) {
   return `<div class="log-list">${entries.map((l) => `<div class="log-entry"><time>${h(date(l.created_at))}</time><span class="log-level ${h(l.level.toLowerCase())}">${h(l.level.toUpperCase())}</span><span class="log-source">${h(l.source || "agent")}</span><span class="log-message">${h(l.message)}</span></div>`).join("")}</div>`;
 }
 function logs(s) {
-  return `<section class="panel"><form id="log-filter" class="toolbar">${field("logQuery", "Search", s.logQuery, { type: "search" })}${field(
+  return `<section class="panel"><form id="log-filter" class="toolbar">${searchField("logQuery", s.logQuery, "Search activity", { submit: true })}${field(
     "logLevel",
     "Level",
     s.logLevel,
@@ -122,7 +131,7 @@ function logs(s) {
         ["error", "ERROR"],
       ],
     },
-  )}<button type="submit">${h(t("Search"))}</button>${isAdmin(s) ? button("Clear activity", "logs-clear", "", "danger-text") : ""}</form>${logRows(s.logs)}<div class="pagination">${button("Previous", "logs-prev", "", "", "")}<span>${h(t("Page"))} ${s.logPage + 1}</span>${button("Next", "logs-next")}</div></section>`;
+  )}${isAdmin(s) ? button("Clear activity", "logs-clear", "", "danger-text") : ""}</form>${logRows(s.logs)}<div class="pagination">${button("Previous", "logs-prev", "", "", "")}<span>${h(t("Page"))} ${s.logPage + 1}</span>${button("Next", "logs-next")}</div></section>`;
 }
 function users(s) {
   return `<section class="panel"><p class="muted">${h(t("Viewers can read status and activity. Administrators manage the instance."))}</p><div class="table-scroll"><table><thead><tr>${["Username", "Role", "Created", "Actions"].map((l) => `<th>${h(t(l))}</th>`).join("")}</tr></thead><tbody>${s.users.map((u) => `<tr><td><strong>${h(u.username)}</strong>${u.id === s.user.id ? ` <span class="protocol">${h(t("Account"))}</span>` : ""}</td><td>${h(t(u.role === "admin" ? "Administrator" : "Viewer"))}</td><td>${h(date(u.created_at))}</td><td class="row-actions">${button("Edit", "user-edit", u.id)}${button("Delete", "user-delete", u.id, "danger-text")}</td></tr>`).join("")}</tbody></table></div></section>`;

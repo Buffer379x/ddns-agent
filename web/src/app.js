@@ -1,15 +1,7 @@
 import { escapeHTML as h, hostname, families, filterRecords } from "./utils.js";
 import { t, locale, setLocale, loadLocale, setTimezone, date } from "./i18n.js";
 import { button, field, formActions, stateBadge } from "./ui.js";
-import {
-  shell,
-  page,
-  login,
-  pages,
-  isAdmin,
-  recordTable,
-  passwordFields,
-} from "./views.js";
+import { shell, page, login, pages, isAdmin, recordTable } from "./views.js";
 
 const state = {
   languages: [
@@ -52,6 +44,13 @@ setLocale(locale);
 applyTheme();
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
+}
+function setTheme(theme) {
+  state.theme = theme;
+  localStorage.setItem("ddns.theme", theme);
+  applyTheme();
+  const select = document.querySelector('select[name="theme"]');
+  if (select) select.value = theme;
 }
 function notice(message, error = false) {
   const node = document.querySelector("#notice");
@@ -462,14 +461,13 @@ async function refreshLocal() {
 }
 const actions = {
   close: () => dialog.close(),
-  password: () =>
-    modal(
-      "Change password",
-      passwordFields() +
-        `<p class="muted">${h(t("Use 12–72 bytes. Changing a password signs out other sessions."))}</p>` +
-        formActions("Save"),
-      "password-form",
-    ),
+  theme: () => {
+    const dark =
+      state.theme === "dark" ||
+      (state.theme === "auto" &&
+        matchMedia("(prefers-color-scheme: dark)").matches);
+    setTheme(dark ? "light" : "dark");
+  },
   logout: async () => {
     await api("/api/auth/logout", "POST", {});
     signOutLocal();
@@ -616,9 +614,7 @@ document.addEventListener("change", async (event) => {
     if (dialog.open) dialog.close();
   }
   if (target.name === "theme") {
-    state.theme = target.value;
-    localStorage.setItem("ddns.theme", state.theme);
-    applyTheme();
+    setTheme(target.value);
   }
   if (target.name === "recordStatus") {
     state.recordStatus = target.value;

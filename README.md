@@ -10,7 +10,7 @@ A self-hosted dynamic DNS updater with an integrated web panel. Go, SQLite and a
 
 ## What's new in v1.1.x
 
-Use **v1.1.1**: it corrects Vultr record pagination in v1.1.0. The interface and upgrade process are unchanged.
+Use **v1.1.2** for the blue interface refinements, compact header controls, read-only overview and consistent form/search layouts. It includes the Vultr pagination and runtime security fixes from v1.1.1.
 
 - Refreshed overview, searchable hostnames, activity, users, notification settings and recovery tools. Responsive layouts, keyboard-accessible native dialogs, light/dark/system themes and German/English translations.
 - Independent IPv4 and IPv6 updates and error states. A failed family is retried without discarding the last successful address.
@@ -18,11 +18,11 @@ Use **v1.1.1**: it corrects Vultr record pagination in v1.1.0. The interface and
 - Validated, transactional imports with a preview and mandatory pre-import backup. Password-protected portable exports work across instance encryption keys.
 - Updated provider integrations, bounded responses and pagination, retention for database logs/IP history, and tests before publishing AMD64/ARM64 images.
 
-See the [review and validation report](docs/v1.1.0-review.md), [upgrade instructions](docs/UPGRADE.md) and [release notes](docs/release-notes.md).
+See the [v1.1.2 UI review](docs/v1.1.2-review.md), [security and validation report](docs/v1.1.0-review.md), [upgrade instructions](docs/UPGRADE.md) and [release notes](docs/release-notes.md).
 
 ## Screenshots
 
-Screenshots come from the running v1.1.0 app with synthetic hostnames, documentation-only IP addresses and placeholder credentials.
+Screenshots come from the running v1.1.2 app with synthetic hostnames, documentation-only IP addresses and placeholder credentials.
 
 ![Overview, light theme](docs/screenshots/overview-light.jpg)
 
@@ -47,7 +47,7 @@ Screenshots come from the running v1.1.0 app with synthetic hostnames, documenta
 ```yaml
 services:
   ddns-agent:
-    image: ghcr.io/buffer379x/ddns-agent:v1.1.1
+    image: ghcr.io/buffer379x/ddns-agent:v1.1.2
     container_name: ddns-agent
     restart: unless-stopped
     ports:

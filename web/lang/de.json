@@ -199,5 +199,8 @@
   "Download": "Herunterladen",
   "A secure and portable home for your DNS.": "Ein sicherer Ort für dein DNS.",
   "Select a provider": "Anbieter wählen",
-  "Backup failed": "Sicherung fehlgeschlagen"
+  "Backup failed": "Sicherung fehlgeschlagen",
+  "Toggle light/dark theme": "Hell/Dunkel umschalten",
+  "Search activity": "Protokoll durchsuchen",
+  "No active hostnames": "Keine aktiven Hostnamen"
 }
